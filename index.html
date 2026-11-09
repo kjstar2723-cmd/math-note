@@ -1,0 +1,1026 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="수학필기">
+<meta name="theme-color" content="#22252c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+</head>
+<body>
+<title>SAJD Math Note</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap">
+<style>
+/* Layout: one-screen app. Toolbar row + tab row on top (or bottom), infinite canvas fills the rest. */
+:root{
+  --chrome:#22252c; --chrome2:#2b2f38; --chrome3:#353a45; --line:#3d4350;
+  --ink:#eceef3; --mute:#9ba3b3; --accent:#5aa2ff; --accent-bg:rgba(90,162,255,.18);
+  --danger:#ff6b5e; --ok:#55c27a;
+  --ui:"Nanum Gothic",-apple-system,"Apple SD Gothic Neo",system-ui,sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--chrome);color:var(--ink);font-family:var(--ui);
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
+#app{position:fixed;inset:0;display:flex;flex-direction:column}
+#app.bottom{flex-direction:column-reverse}
+#chrome{background:var(--chrome);border-bottom:1px solid var(--line);flex:none;
+  padding-top:env(safe-area-inset-top,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+#app.bottom #chrome{border-bottom:0;border-top:1px solid var(--line);padding-top:0;padding-bottom:env(safe-area-inset-bottom,0px)}
+#bar{display:flex;align-items:center;gap:2px;padding:5px 8px;overflow-x:auto;scrollbar-width:none}
+#bar::-webkit-scrollbar{display:none}
+.sep{width:1px;height:26px;background:var(--line);margin:0 3px;flex:none}
+.tb{flex:none;width:39px;height:40px;border:0;border-radius:10px;background:transparent;color:var(--ink);display:grid;place-items:center;cursor:pointer;position:relative;padding:0;font:inherit}
+.tb svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tb:active{background:var(--chrome3)}
+.tb.on{background:var(--accent-bg);color:var(--accent)}
+.tb.mod{width:auto;min-width:38px;padding:0 7px;font-size:13px;font-weight:700;color:var(--mute);border:1px solid var(--line)}
+.tb.mod.on{color:#0f1420;background:var(--accent);border-color:var(--accent)}
+.tb:focus-visible,.btn:focus-visible,.sw:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.sw{flex:none;width:27px;height:27px;border-radius:50%;border:2px solid var(--chrome);box-shadow:0 0 0 1px var(--line);margin:0 2px;cursor:pointer;padding:0}
+.sw.on{box-shadow:0 0 0 2px var(--accent);border-color:var(--chrome)}
+#wdot{width:39px;height:40px}
+#wdot i{display:block;border-radius:50%;background:var(--ink)}
+#tabs{display:flex;align-items:stretch;gap:2px;padding:0 8px 0;overflow-x:auto;scrollbar-width:none;height:34px}
+#tabs::-webkit-scrollbar{display:none}
+.tab{flex:none;display:flex;align-items:center;gap:6px;max-width:220px;padding:0 6px 0 12px;border-radius:8px 8px 0 0;background:transparent;color:var(--mute);font-size:13px;cursor:pointer;border:0;font-family:var(--ui)}
+#app.bottom .tab{border-radius:0 0 8px 8px}
+.tab span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tab.on{background:var(--chrome2);color:var(--ink)}
+.tab .x{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;color:var(--mute);font-size:15px;line-height:1}
+.tab .x:active{background:var(--chrome3)}
+.tab.add{padding:0 12px;font-size:18px}
+#stage{position:relative;flex:1;overflow:hidden;touch-action:none}
+#stage canvas{position:absolute;left:0;top:0;width:100%;height:100%;touch-action:none}
+/* popovers & sheets */
+.pop{position:fixed;z-index:30;background:var(--chrome2);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.45);padding:14px;min-width:240px;max-width:min(92vw,380px);color:var(--ink)}
+.pop h3{margin:0 0 10px;font-size:14px;font-weight:800;letter-spacing:.02em}
+.row{display:flex;align-items:center;gap:8px;margin:8px 0;flex-wrap:wrap}
+.row label{font-size:13px;color:var(--mute);min-width:64px}
+.seg{display:inline-flex;background:var(--chrome);border-radius:9px;padding:2px;gap:2px}
+.seg button{border:0;background:transparent;color:var(--mute);padding:7px 11px;border-radius:7px;font:inherit;font-size:13px;cursor:pointer}
+.seg button.on{background:var(--chrome3);color:var(--ink)}
+.btn{border:1px solid var(--line);background:var(--chrome3);color:var(--ink);border-radius:9px;padding:9px 13px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#0d1320}
+.btn.dan{color:var(--danger)}
+.btn:active{filter:brightness(1.15)}
+input[type=range]{width:180px;accent-color:var(--accent)}
+input[type=number],input[type=text],textarea{background:var(--chrome);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;font-size:15px;-webkit-user-select:text;user-select:text}
+input[type=number]{width:72px}
+textarea{width:100%;box-sizing:border-box;resize:vertical;font-family:ui-monospace,Menlo,monospace;font-size:15px}
+.modal-bg{position:fixed;inset:0;z-index:40;background:rgba(8,10,14,.5);display:grid;place-items:center;padding:16px}
+.modal{background:var(--chrome2);border:1px solid var(--line);border-radius:16px;width:min(620px,100%);max-height:calc(100% - 32px);overflow:auto;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.modal h2{margin:0 0 12px;font-size:17px;font-weight:800}
+.modal .foot{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+.hint{font-size:12px;color:var(--mute);line-height:1.55}
+.preview{background:#fff;color:#111;border-radius:10px;min-height:48px;padding:10px;margin-top:10px;overflow:auto}
+.preview svg{max-width:100%}
+#drawer{position:fixed;z-index:35;top:0;bottom:0;left:0;width:min(340px,88vw);background:var(--chrome2);border-right:1px solid var(--line);box-shadow:10px 0 40px rgba(0,0,0,.4);
+  padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:12px;transform:translateX(-105%);transition:transform .22s ease}
+#drawer.open{transform:none}
+#drawer .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#notes{flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px;margin:0 -4px;padding:0 4px}
+.note{display:flex;align-items:center;gap:8px;padding:10px;border-radius:10px;background:var(--chrome);cursor:pointer}
+.note.on{outline:2px solid var(--accent)}
+.note .nm{flex:1;min-width:0}
+.note .nm b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.note .nm small{color:var(--mute);font-size:12px;font-variant-numeric:tabular-nums}
+.note button{border:0;background:transparent;color:var(--mute);font:inherit;font-size:12px;padding:6px;border-radius:6px;cursor:pointer}
+.note button.dan{color:var(--danger)}
+#selbar{position:fixed;z-index:25;display:flex;gap:2px;background:var(--chrome2);border:1px solid var(--line);border-radius:12px;padding:4px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+#selbar button{border:0;background:transparent;color:var(--ink);font:inherit;font-size:13px;font-weight:700;padding:8px 10px;border-radius:8px;cursor:pointer;white-space:nowrap}
+#selbar button:active{background:var(--chrome3)}
+#selbar button.dan{color:var(--danger)}
+#toast{position:fixed;z-index:60;left:50%;bottom:calc(28px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:rgba(20,22,28,.92);color:#fff;padding:10px 16px;border-radius:999px;font-size:14px;pointer-events:none;opacity:0;transition:opacity .2s}
+#toast.show{opacity:1}
+#zoomlbl{position:absolute;right:calc(12px + env(safe-area-inset-right,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px));font-size:12px;color:#8a93a3;background:rgba(30,33,40,.75);padding:4px 9px;border-radius:999px;pointer-events:auto;cursor:pointer;font-variant-numeric:tabular-nums}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:13px}
+.keys kbd{font-family:ui-monospace,Menlo,monospace;background:var(--chrome);border:1px solid var(--line);border-radius:5px;padding:1px 6px;white-space:nowrap;justify-self:start}
+.colors-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin-top:8px}
+.colors-grid button{aspect-ratio:1;border-radius:7px;border:1px solid var(--line);cursor:pointer;padding:0}
+@media (prefers-reduced-motion:reduce){#drawer{transition:none}}
+</style>
+
+<div id="app">
+  <div id="chrome">
+    <div id="bar" role="toolbar" aria-label="도구">
+      <button class="tb" id="bMenu" title="노트 목록" aria-label="노트 목록"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <div class="sep"></div>
+      <button class="tb" data-tool="pen" title="실선펜 (S)" aria-label="실선펜"><svg viewBox="0 0 24 24"><path d="M4 20l4.5-1L19 8.5 15.5 5 5 15.5z"/><path d="M13.5 7l3.5 3.5"/></svg></button>
+      <button class="tb" data-tool="dash" title="점선펜 (D)" aria-label="점선펜"><svg viewBox="0 0 24 24"><path d="M4 20l2-2M9 15l2-2M14 10l2-2M19 5l1-1"/></svg></button>
+      <button class="tb" data-tool="hl" title="형광펜 (H)" aria-label="형광펜"><svg viewBox="0 0 24 24"><path d="M9.5 14.5L5 19h6l1.5-1.5"/><path d="M8 13l8-8.5 4 4L12 17z"/><path d="M4 21h16" opacity=".5"/></svg></button>
+      <button class="tb" data-tool="eraser" title="지우개 (E)" aria-label="지우개"><svg viewBox="0 0 24 24"><path d="M9 20h11"/><path d="M5.5 15.5l9-9 5 5-8.5 8.5H9z"/><path d="M10 11l5 5"/></svg></button>
+      <button class="tb" data-tool="laser" title="레이저 포인터 (P)" aria-label="레이저 포인터"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg></button>
+      <button class="tb" data-tool="lasso" title="올가미 (L)" aria-label="올가미"><svg viewBox="0 0 24 24"><path d="M12 4c4.7 0 8 2.4 8 5.6S16.7 15 12 15s-8-2.2-8-5.4S7.3 4 12 4z" stroke-dasharray="2.6 2.4"/><path d="M7.5 14c-1.4 2-.6 4.6 2 5.5"/></svg></button>
+      <div class="sep"></div>
+      <button class="tb" data-tool="text" title="텍스트 (T)" aria-label="텍스트"><svg viewBox="0 0 24 24"><path d="M5 7V5h14v2M12 5v14M9 19h6"/></svg></button>
+      <button class="tb" data-tool="latex" title="LaTeX 수식" aria-label="LaTeX 수식"><svg viewBox="0 0 24 24"><path d="M17 5H6l6 7-6 7h11"/></svg></button>
+      <button class="tb" data-tool="graph" title="함수 그래프" aria-label="함수 그래프"><svg viewBox="0 0 24 24"><path d="M5 3v18M3 17h18"/><path d="M7 19c2.5-9 5-13 13-14" /></svg></button>
+      <div class="sep"></div>
+      <div id="swatches" style="display:flex;align-items:center"></div>
+      <button class="tb" id="wdot" title="굵기" aria-label="굵기"><i></i></button>
+      <div class="sep"></div>
+      <button class="tb" id="bGrid" title="모눈종이 (W)" aria-label="모눈종이"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 9.3h16M4 14.6h16M9.3 4v16M14.6 4v16"/></svg></button>
+      <button class="tb" id="bUndo" title="실행취소 (⌘Z)" aria-label="실행취소"><svg viewBox="0 0 24 24"><path d="M9 7L4.5 11.5 9 16"/><path d="M5 11.5h9a5 5 0 010 10h-2"/></svg></button>
+      <button class="tb" id="bRedo" title="다시실행 (⇧⌘Z)" aria-label="다시실행"><svg viewBox="0 0 24 24"><path d="M15 7l4.5 4.5L15 16"/><path d="M19 11.5h-9a5 5 0 000 10h2"/></svg></button>
+      <div class="sep"></div>
+      <button class="tb mod" data-mod="shift" title="Shift: 직선 · 비율 유지 크기조절">⇧</button>
+      <button class="tb mod" data-mod="ctrl" title="Ctrl: 임시 점선 · 격자 붙임 해제">Ctrl</button>
+      <button class="tb mod" data-mod="alt" title="Alt: 도형 인식 강제 · 자유 사각형 · 포물선 대칭">Alt</button>
+      <div class="sep"></div>
+      
+      <button class="tb" id="bSettings" title="설정" aria-label="설정"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg></button>
+    </div>
+    <div id="tabs"></div>
+  </div>
+  <div id="stage">
+    <canvas id="cbg"></canvas><canvas id="cbase"></canvas><canvas id="cover"></canvas>
+    <div id="zoomlbl" title="100%로">100%</div>
+  </div>
+</div>
+
+<aside id="drawer" aria-label="노트">
+  <div style="display:flex;align-items:center;gap:10px">
+    <svg viewBox="0 0 24 24" width="26" height="26" style="fill:none;stroke:#c77dff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M17 5H6l6 7-6 7h11"/></svg>
+    <b style="font-size:16px;font-weight:800">SAJD Math Note</b>
+  </div>
+  <div class="grid2">
+    <button class="btn pri" id="dNew">새 노트</button>
+    <button class="btn" id="dOpen">파일 열기</button>
+    <button class="btn" id="dSave">파일로 저장</button>
+    <button class="btn" id="dImg">PDF·이미지</button>
+    <button class="btn" id="dPng">PNG 내보내기</button>
+    <button class="btn" id="dPdf">PDF 내보내기</button>
+  </div>
+  <div class="hint" id="storeHint">노트는 이 기기에 자동 저장돼요.</div>
+  <div id="notes"></div>
+  <div class="grid2">
+    <button class="btn dan" id="dClear">전체 지우기</button>
+    <button class="btn" id="dHelp">사용법</button>
+  </div>
+</aside>
+
+<div id="selbar" hidden></div>
+<div id="toast"></div>
+<input type="file" id="fImport" accept="application/pdf,image/*" hidden>
+<input type="file" id="fImg" accept="image/*" hidden>
+<input type="file" id="fOpen" accept=".json,application/json,.sajdweb" hidden>
+
+<script>
+window.MathJax={tex:{inlineMath:[],displayMath:[]},svg:{fontCache:'none'},startup:{typeset:false},options:{enableMenu:false}};
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg-full.js"></script>
+<script>
+(()=>{
+'use strict';
+/* ================================================================ utils */
+const $=s=>document.querySelector(s);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const dist=(ax,ay,bx,by)=>Math.hypot(ax-bx,ay-by);
+function segDist(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,l=dx*dx+dy*dy;let t=l?((px-ax)*dx+(py-ay)*dy)/l:0;t=clamp(t,0,1);return Math.hypot(px-ax-t*dx,py-ay-t*dy)}
+function pip(x,y,poly){let ins=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const xi=poly[i][0],yi=poly[i][1],xj=poly[j][0],yj=poly[j][1];if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)ins=!ins}return ins}
+function hexRgb(h){h=(h||'#000').replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');return[parseInt(h.slice(0,2),16)||0,parseInt(h.slice(2,4),16)||0,parseInt(h.slice(4,6),16)||0]}
+function rgbHex(r,g,b){return'#'+[r,g,b].map(v=>clamp(Math.round(v),0,255).toString(16).padStart(2,'0')).join('')}
+function lum(h){const[r,g,b]=hexRgb(h);return(0.2126*r+0.7152*g+0.0722*b)/255}
+const LS=(k,v)=>{try{if(v===undefined){const r=localStorage.getItem('sajd.'+k);return r==null?null:JSON.parse(r)}localStorage.setItem('sajd.'+k,JSON.stringify(v))}catch(e){return null}};
+let _id=0;const nid=()=>Date.now().toString(36)+'-'+(++_id).toString(36)+Math.random().toString(36).slice(2,5);
+function toast(msg,ms=1600){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),ms)}
+function loadScript(src){return new Promise((res,rej)=>{if(document.querySelector(`script[src="${src}"]`)&&loadScript.done[src])return res();const s=document.createElement('script');s.src=src;s.onload=()=>{loadScript.done[src]=1;res()};s.onerror=()=>rej(new Error('load '+src));document.head.appendChild(s)})}
+loadScript.done={};
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
+/* ================================================================ settings */
+const DEF_COLORS=['#0f172a','#006fff','#ed3624','#fa9d00','#ffff00','#60ba46','#a400c7','#cccac9'];
+const st=Object.assign({tool:'pen',ci:0,colors:DEF_COLORS.slice(),pen:3,dash:3,hl:20,er:16,grid:false,board:'paper',finger:false,
+  eraserMode:'object',lassoMode:'free',laserDur:1,barPos:'top',gridSize:40,hold:true},LS('settings')||{});
+if(!Array.isArray(st.colors)||st.colors.length!==8)st.colors=DEF_COLORS.slice();
+const saveSettings=()=>LS('settings',st);
+const BOARDS={paper:{bg:'#ffffff',g1:'#e6ebf2',g2:'#cdd6e2',dark:false,label:'흰 종이'},cream:{bg:'#fbf8f0',g1:'#ebe5d6',g2:'#d8cfba',dark:false,label:'미색 종이'},
+  board:{bg:'#1e2a26',g1:'rgba(255,255,255,.07)',g2:'rgba(255,255,255,.16)',dark:true,label:'칠판'},black:{bg:'#17191e',g1:'rgba(255,255,255,.06)',g2:'rgba(255,255,255,.15)',dark:true,label:'검정'}};
+if(!BOARDS[st.board])st.board='paper';
+function disp(c){const d=BOARDS[st.board].dark;if(d&&lum(c)<0.1)return'#f1f1ec';if(!d&&lum(c)>0.93)return'#222222';return c}
+const mods={shift:false,ctrl:false,alt:false};const vmods={shift:false,ctrl:false,alt:false};
+const M=k=>mods[k]||vmods[k];
+const TOOLNAMES={pen:'실선펜',dash:'점선펜',hl:'형광펜',eraser:'지우개',laser:'레이저 포인터',lasso:'올가미',text:'텍스트',latex:'LaTeX 수식',graph:'함수 그래프'};
+
+/* ================================================================ document */
+let doc=null;          // {id,name,objs,assets,view,created,updated}
+let hist=[],hi=0;      // undo stack of objs arrays (immutable objects)
+let sel=[];            // selected ids
+let clip=null;
+const view=()=>doc.view;
+function newDoc(name){return{id:nid(),name:name||'새 노트',objs:[],assets:{},view:{x:-40,y:-40,s:1},created:Date.now(),updated:Date.now()}}
+function setDoc(d){doc=d;if(!doc.assets)doc.assets={};if(!doc.view)doc.view={x:0,y:0,s:1};hist=[doc.objs];hi=0;sel=[];bbC=new WeakMap();invalidateAll();updateUndo();renderTabs();updateZoomLbl()}
+function commit(objs,keepSel){hist=hist.slice(0,hi+1);hist.push(objs);if(hist.length>150)hist.shift();hi=hist.length-1;doc.objs=objs;if(!keepSel)sel=sel.filter(id=>objs.some(o=>o.id===id));dirtyBase();dirtyOver();updateUndo();scheduleSave()}
+function undo(){if(hi<=0)return;hi--;doc.objs=hist[hi];sel=[];dirtyBase();dirtyOver();updateUndo();scheduleSave();hideSelbar()}
+function redo(){if(hi>=hist.length-1)return;hi++;doc.objs=hist[hi];sel=[];dirtyBase();dirtyOver();updateUndo();scheduleSave();hideSelbar()}
+function updateUndo(){$('#bUndo').style.opacity=hi>0?1:.4;$('#bRedo').style.opacity=hi<hist.length-1?1:.4}
+const byId=id=>doc.objs.find(o=>o.id===id);
+
+/* ================================================================ geometry */
+function qctrl(cp){return[2*cp[1][0]-(cp[0][0]+cp[2][0])/2,2*cp[1][1]-(cp[0][1]+cp[2][1])/2]}
+function qpt(cp,t){const c=qctrl(cp),u=1-t;return[u*u*cp[0][0]+2*u*t*c[0]+t*t*cp[2][0],u*u*cp[0][1]+2*u*t*c[1]+t*t*cp[2][1]]}
+function ellParams(cp){const x1=Math.min(cp[0][0],cp[1][0]),x2=Math.max(cp[0][0],cp[1][0]),y1=Math.min(cp[0][1],cp[1][1]),y2=Math.max(cp[0][1],cp[1][1]);return{cx:(x1+x2)/2,cy:(y1+y2)/2,rx:(x2-x1)/2,ry:(y2-y1)/2}}
+function shapePts(o){
+  switch(o.k){
+    case'line':return o.cp;
+    case'rect':case'poly':return o.open?o.cp:o.cp.concat([o.cp[0]]);
+    case'ellipse':{const e=ellParams(o.cp),a=[];for(let i=0;i<=64;i++){const t=i/64*Math.PI*2;a.push([e.cx+e.rx*Math.cos(t),e.cy+e.ry*Math.sin(t)])}return a}
+    case'curve':{const a=[];for(let i=0;i<=40;i++)a.push(qpt(o.cp,i/40));return a}
+  }return o.cp}
+function edges(o){const p=shapePts(o);const e=[];if(o.k==='curve'||o.k==='ellipse')return[{curve:true}];for(let i=0;i<p.length-1;i++)e.push([p[i],p[i+1]]);return e}
+let bbC=new WeakMap();
+function bbox(o){let b=bbC.get(o);if(b)return b;b=computeBB(o);bbC.set(o,b);return b}
+function computeBB(o){
+  let x1=Infinity,y1=Infinity,x2=-Infinity,y2=-Infinity,pad=0;const add=(x,y)=>{if(x<x1)x1=x;if(x>x2)x2=x;if(y<y1)y1=y;if(y>y2)y2=y};
+  switch(o.t){
+    case'stroke':for(let i=0;i<o.p.length;i+=3)add(o.p[i],o.p[i+1]);pad=o.w;break;
+    case'shape':shapePts(o).forEach(p=>add(p[0],p[1]));pad=o.w;break;
+    case'dot':add(o.x,o.y);pad=o.r;break;
+    case'text':{const m=textMeasure(o);add(o.x,o.y);add(o.x+m.w,o.y+m.h);break}
+    case'img':add(o.x,o.y);add(o.x+o.w,o.y+o.h);break;
+    case'graph':add(o.x+o.xr[0]*o.u,o.y-o.yr[1]*o.u);add(o.x+o.xr[1]*o.u,o.y-o.yr[0]*o.u);pad=4;break;
+  }
+  return{x1:x1-pad,y1:y1-pad,x2:x2+pad,y2:y2+pad}}
+function unionBB(objs){let b=null;for(const o of objs){const c=bbox(o);if(!b)b={...c};else{b.x1=Math.min(b.x1,c.x1);b.y1=Math.min(b.y1,c.y1);b.x2=Math.max(b.x2,c.x2);b.y2=Math.max(b.y2,c.y2)}}return b}
+function polyHit(pts,x,y,r){for(let i=0;i<pts.length-1;i++)if(segDist(x,y,pts[i][0],pts[i][1],pts[i+1][0],pts[i+1][1])<=r)return true;return pts.length===1&&dist(x,y,pts[0][0],pts[0][1])<=r}
+function strokePts(o){const a=[];for(let i=0;i<o.p.length;i+=3)a.push([o.p[i],o.p[i+1]]);return a}
+function hitObj(o,x,y,r){
+  const b=bbox(o);if(x<b.x1-r||x>b.x2+r||y<b.y1-r||y>b.y2+r)return false;
+  switch(o.t){
+    case'stroke':{const pts=strokePts(o);if(o.fill&&pip(x,y,pts))return true;return polyHit(pts,x,y,r+o.w/2)}
+    case'shape':{const pts=shapePts(o);if(o.fill&&pip(x,y,pts))return true;return polyHit(pts,x,y,r+o.w/2)}
+    case'dot':return dist(x,y,o.x,o.y)<=r+o.r;
+    default:return true}}
+function samplePts(o){
+  switch(o.t){case'stroke':return strokePts(o);case'shape':return shapePts(o);case'dot':return[[o.x,o.y]];
+    default:{const b=bbox(o);return[[b.x1,b.y1],[b.x2,b.y1],[b.x2,b.y2],[b.x1,b.y2],[(b.x1+b.x2)/2,(b.y1+b.y2)/2]]}}}
+function xform(o,f,k){
+  const n={...o};
+  switch(o.t){
+    case'stroke':{const p=o.p.slice();for(let i=0;i<p.length;i+=3){const q=f(p[i],p[i+1]);p[i]=q[0];p[i+1]=q[1]}n.p=p;n.w=o.w*k;break}
+    case'shape':n.cp=o.cp.map(p=>f(p[0],p[1]));n.w=o.w*k;break;
+    case'dot':[n.x,n.y]=f(o.x,o.y);n.r=o.r*k;break;
+    case'text':[n.x,n.y]=f(o.x,o.y);n.fs=o.fs*k;n.w=o.w*k;break;
+    case'img':[n.x,n.y]=f(o.x,o.y);n.w=o.w*k;n.h=o.h*k;break;
+    case'graph':[n.x,n.y]=f(o.x,o.y);n.u=o.u*k;break;
+  }return n}
+const moveObj=(o,dx,dy)=>xform(o,(x,y)=>[x+dx,y+dy],1);
+function snapPt(x,y){if(!st.grid||M('ctrl'))return[x,y];const g=st.gridSize;return[Math.round(x/g)*g,Math.round(y/g)*g]}
+
+/* ================================================================ expression parser (graphs) */
+function compileExpr(src){
+  const s=src.replace(/\s+/g,'').replace(/θ/g,'theta').replace(/π/g,'pi').replace(/·|×/g,'*').replace(/÷/g,'/').replace(/−/g,'-');
+  let i=0;const toks=[];
+  while(i<s.length){const c=s[i];
+    if(/[0-9.]/.test(c)){let j=i;while(j<s.length&&/[0-9.]/.test(s[j]))j++;toks.push({t:'n',v:parseFloat(s.slice(i,j))});i=j;continue}
+    if(/[a-zA-Z]/.test(c)){let j=i;while(j<s.length&&/[a-zA-Z]/.test(s[j]))j++;splitIdent(s.slice(i,j)).forEach(w=>toks.push({t:'id',v:w}));i=j;continue}
+    if('+-*/^(),'.includes(c)){toks.push({t:c});i++;continue}
+    throw new Error('알 수 없는 문자: '+c)}
+  function splitIdent(w){const F=['asin','acos','atan','sinh','cosh','tanh','sqrt','sin','cos','tan','sec','csc','cot','abs','exp','log','ln','floor','ceil','sgn','theta','pi','e','x','y','t','r'];
+    const out=[];let k=0;while(k<w.length){const f=F.find(n=>w.startsWith(n,k));if(!f)throw new Error('알 수 없는 이름: '+w.slice(k));out.push(f);k+=f.length}return out}
+  const FN={sin:Math.sin,cos:Math.cos,tan:Math.tan,asin:Math.asin,acos:Math.acos,atan:Math.atan,sinh:Math.sinh,cosh:Math.cosh,tanh:Math.tanh,sqrt:Math.sqrt,abs:Math.abs,exp:Math.exp,
+    log:x=>Math.log10(x),ln:Math.log,floor:Math.floor,ceil:Math.ceil,sgn:Math.sign,sec:x=>1/Math.cos(x),csc:x=>1/Math.sin(x),cot:x=>1/Math.tan(x)};
+  let p=0;const peek=()=>toks[p],eat=t=>{if(toks[p]&&toks[p].t===t){p++;return true}return false};
+  function expr(){let a=term();for(;;){if(eat('+')){const l=a,r=term();a=e=>l(e)+r(e)}else if(eat('-')){const l=a,r=term();a=e=>l(e)-r(e)}else return a}}
+  function term(){let a=unary();for(;;){if(eat('*')){const l=a,r=unary();a=e=>l(e)*r(e)}else if(eat('/')){const l=a,r=unary();a=e=>l(e)/r(e)}
+    else if(peek()&&(peek().t==='n'||peek().t==='id'||peek().t==='(')){const l=a,r=power();a=e=>l(e)*r(e)}else return a}}
+  function unary(){if(eat('-')){const a=unary();return e=>-a(e)}if(eat('+'))return unary();return power()}
+  function power(){const b=atom();if(eat('^')){const x=unary();return e=>Math.pow(b(e),x(e))}return b}
+  function atom(){const k=toks[p++];if(!k)throw new Error('식이 끝나지 않았어요');
+    if(k.t==='n'){const v=k.v;return()=>v}
+    if(k.t==='('){const a=expr();if(!eat(')'))throw new Error(') 가 필요해요');return a}
+    if(k.t==='id'){const v=k.v;
+      if(FN[v]){const f=FN[v];let arg;if(eat('(')){arg=expr();if(!eat(')'))throw new Error(') 가 필요해요')}else arg=power();
+        if(peek()&&peek().t==='^'){p++;const ex=unary();return e=>Math.pow(f(arg(e)),ex(e))}return e=>f(arg(e))}
+      if(v==='pi')return()=>Math.PI;if(v==='e')return()=>Math.E;
+      return e=>e[v]}
+    throw new Error('식을 읽을 수 없어요')}
+  const f=expr();if(p<toks.length)throw new Error('식을 읽을 수 없어요');return f}
+function splitTop(s,ch){let d=0;for(let i=0;i<s.length;i++){const c=s[i];if(c==='(')d++;else if(c===')')d--;else if(c===ch&&d===0)return[s.slice(0,i),s.slice(i+1)]}return null}
+function parseFn(line){
+  let s=line.trim();if(!s)return null;
+  if(/^\(.*\)$/.test(s)&&splitTop(s.slice(1,-1),','))s=s.slice(1,-1);
+  const pc=splitTop(s,',');
+  if(pc){const ex=compileExpr(pc[0].replace(/^x\s*=/,'')),ey=compileExpr(pc[1].replace(/^y\s*=/,''));return{m:'xy',fx:ex,fy:ey}}
+  const eq=splitTop(s,'=');
+  if(eq){const L=eq[0].trim(),R=eq[1].trim();
+    if(L==='y'&&!/y/.test(R))return{m:'y',f:compileExpr(R)};
+    if(L==='r')return{m:'r',f:compileExpr(R)};
+    if(L==='x'&&!/x/.test(R.replace(/exp/g,'')))return{m:'x',f:compileExpr(R)};
+    const a=compileExpr(L),b=compileExpr(R);return{m:'imp',f:e=>a(e)-b(e)}}
+  return{m:'y',f:compileExpr(s)}}
+const graphCache=new WeakMap();
+function graphPaths(o){
+  let c=graphCache.get(o);if(c)return c;c=[];
+  const[x0,x1]=o.xr,[y0,y1]=o.yr,span=Math.max(x1-x0,y1-y0);
+  for(const fn of o.fns){let P;try{P=parseFn(fn.e)}catch(e){continue}if(!P)continue;const lines=[];let cur=[];
+    const push=(x,y)=>{if(!isFinite(x)||!isFinite(y)||Math.abs(y)>span*50||Math.abs(x)>span*50){if(cur.length>1)lines.push(cur);cur=[];return}
+      if(cur.length){const l=cur[cur.length-1];if(Math.abs(y-l[1])>(y1-y0)*1.5&&o.fns){if(cur.length>1)lines.push(cur);cur=[]}}cur.push([x,y])};
+    const tr=fn.tr||[0,Math.PI*2];
+    if(P.m==='y'){const N=Math.max(200,Math.round((x1-x0)*o.u/1.5));for(let i=0;i<=N;i++){const x=x0+(x1-x0)*i/N;push(x,P.f({x}))}}
+    else if(P.m==='x'){const N=Math.max(200,Math.round((y1-y0)*o.u/1.5));for(let i=0;i<=N;i++){const y=y0+(y1-y0)*i/N;push(P.f({y}),y)}}
+    else if(P.m==='r'){const N=1200;for(let i=0;i<=N;i++){const th=tr[0]+(tr[1]-tr[0])*i/N,r=P.f({theta:th,t:th,x:th});push(r*Math.cos(th),r*Math.sin(th))}}
+    else if(P.m==='xy'){const N=1200;for(let i=0;i<=N;i++){const t=tr[0]+(tr[1]-tr[0])*i/N;push(P.fx({t,theta:t}),P.fy({t,theta:t}))}}
+    else if(P.m==='imp'){const N=180,dx=(x1-x0)/N,dy=(y1-y0)/N,v=[];
+      for(let j=0;j<=N;j++){v.push([]);for(let i=0;i<=N;i++)v[j].push(P.f({x:x0+i*dx,y:y0+j*dy}))}
+      const segs=[];
+      for(let j=0;j<N;j++)for(let i=0;i<N;i++){const a=v[j][i],b=v[j][i+1],cc=v[j+1][i+1],d=v[j+1][i];if(![a,b,cc,d].every(isFinite))continue;
+        const X=i*dx+x0,Y=j*dy+y0,pts=[];const ed=(va,vb,ax,ay,bx,by)=>{if((va<0)!==(vb<0)){const t=va/(va-vb);pts.push([ax+(bx-ax)*t,ay+(by-ay)*t])}};
+        ed(a,b,X,Y,X+dx,Y);ed(b,cc,X+dx,Y,X+dx,Y+dy);ed(d,cc,X,Y+dy,X+dx,Y+dy);ed(a,d,X,Y,X,Y+dy);
+        if(pts.length>=2)segs.push([pts[0],pts[1]]);if(pts.length===4)segs.push([pts[2],pts[3]])}
+      segs.forEach(sg=>lines.push(sg))}
+    if(cur.length>1)lines.push(cur);
+    c.push({c:fn.c,lines,imp:P.m==='imp'})}
+  graphCache.set(o,c);return c}
+
+/* ================================================================ text & LaTeX rendering */
+const RS=3; // raster scale for text
+const textCache=new Map();
+function fontStr(o){return`${o.bold?'800 ':'400 '}${o.fs}px "Nanum Gothic", "Apple SD Gothic Neo", sans-serif`}
+function wrapLines(ctx,s,maxW){
+  const out=[];for(const para of s.split('\n')){if(!maxW){out.push(para);continue}let line='';
+    for(const ch of para){const t=line+ch;if(ctx.measureText(t).width>maxW&&line){let cut=line.lastIndexOf(' ');if(cut>0&&cut>line.length-12){out.push(line.slice(0,cut));line=line.slice(cut+1)+ch}else{out.push(line);line=ch}}else line=t}
+    out.push(line)}return out}
+const mctx=document.createElement('canvas').getContext('2d');
+function textKey(o){return[o.s,o.fs,o.latex?0:o.w,disp(o.c),o.bold?1:0,o.latex?1:0].join('\u0001')}
+function textMeasure(o){const r=textRender(o);if(r)return{w:r.w,h:r.h};mctx.font=fontStr(o);const lines=o.s.split('\n');return{w:Math.max(20,...lines.map(l=>mctx.measureText(l).width)),h:lines.length*o.fs*1.4}}
+function textRender(o){
+  const k=textKey(o);const c=textCache.get(k);if(c)return c.ready?c:null;
+  if(o.latex&&window.MathJax&&MathJax.tex2svg){renderLatex(o,k);return null}
+  if(o.latex&&!(window.MathJax&&MathJax.tex2svg)){/* not loaded yet: plain fallback, retry later */ waitMJ();}
+  mctx.font=fontStr(o);const lines=wrapLines(mctx,o.s,o.latex?0:o.w);const lh=o.fs*1.4;
+  const w=Math.max(10,o.latex?0:0,...lines.map(l=>mctx.measureText(l).width)),h=Math.max(lh,lines.length*lh);
+  const cv=document.createElement('canvas');cv.width=Math.ceil(w*RS)+2;cv.height=Math.ceil(h*RS)+2;const x=cv.getContext('2d');x.scale(RS,RS);x.font=fontStr(o);x.fillStyle=disp(o.c);x.textBaseline='middle';
+  lines.forEach((l,i)=>x.fillText(l,0,i*lh+lh/2));const r={ready:true,img:cv,w,h};
+  if(!(o.latex))textCache.set(k,r);return r}
+let mjWait=null;function waitMJ(){if(mjWait)return;mjWait=setInterval(()=>{if(window.MathJax&&MathJax.tex2svg){clearInterval(mjWait);textCache.clear();bbC=new WeakMap();dirtyBase()}},400)}
+function texEscText(s){return s.replace(/\\/g,'\\backslash ').replace(/([{}#$%&_])/g,'\\$1').replace(/\^/g,'\\hat{}').replace(/~/g,'\\sim ')}
+function latexLine(line,bold){const parts=line.split('$');let tex='';parts.forEach((p,i)=>{if(i%2){if(p.trim())tex+=bold?`\\boldsymbol{${p}}`:`{${p}}`}else if(p)tex+=bold?`\\textbf{${texEscText(p)}}`:`\\text{${texEscText(p)}}`});return tex||'\\;'}
+function renderLatex(o,k){
+  const entry={ready:false};textCache.set(k,entry);
+  const col=disp(o.c),exPx=o.fs*0.45,lines=o.s.split('\n');
+  Promise.all(lines.map(line=>new Promise(res=>{
+    try{const node=MathJax.tex2svg(latexLine(line,o.bold),{display:false,em:o.fs,ex:exPx});const svg=node.querySelector('svg');
+      const wEx=parseFloat(svg.getAttribute('width')),hEx=parseFloat(svg.getAttribute('height'));const va=parseFloat((svg.style.verticalAlign||'0').replace('ex',''))||0;
+      const w=wEx*exPx,h=hEx*exPx;svg.setAttribute('width',w*RS);svg.setAttribute('height',h*RS);svg.setAttribute('xmlns','http://www.w3.org/2000/svg');svg.removeAttribute('style');
+      let str=new XMLSerializer().serializeToString(svg).replace(/currentColor/g,col);
+      const img=new Image();img.onload=()=>res({img,w,h,va:va*exPx});img.onerror=()=>res(null);img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(str)}
+    catch(e){res(null)}}))).then(arr=>{
+      const gap=o.fs*0.35;let W=10,H=0;const rows=arr.map(a=>{const h=a?Math.max(a.h,o.fs*1.1):o.fs*1.2;W=Math.max(W,a?a.w:0);const r={a,y:H,h};H+=h+gap;return r});H=Math.max(o.fs,H-gap);
+      const cv=document.createElement('canvas');cv.width=Math.ceil(W*RS)+2;cv.height=Math.ceil(H*RS)+2;const x=cv.getContext('2d');
+      rows.forEach(r=>{if(r.a)x.drawImage(r.a.img,0,(r.y+(r.h-r.a.h)/2)*RS,r.a.w*RS,r.a.h*RS)});
+      Object.assign(entry,{ready:true,img:cv,w:W,h:H});bbC=new WeakMap();dirtyBase();dirtyOver()})}
+function latexToSvgEl(tex){try{return MathJax.tex2svg(tex,{display:false})}catch(e){const d=document.createElement('div');d.textContent=e.message;return d}}
+
+/* ================================================================ canvases & view */
+const stage=$('#stage'),cbg=$('#cbg'),cbase=$('#cbase'),cover=$('#cover');
+const gctx=cbg.getContext('2d'),bctx=cbase.getContext('2d'),octx=cover.getContext('2d');
+let DPR=1,W=0,H=0;
+function resize(){DPR=Math.min(window.devicePixelRatio||1,3);W=stage.clientWidth;H=stage.clientHeight;
+  for(const c of[cbg,cbase,cover]){c.width=Math.round(W*DPR);c.height=Math.round(H*DPR)}invalidateAll()}
+const toWorld=(sx,sy)=>[sx/view().s+view().x,sy/view().s+view().y];
+const toScreen=(wx,wy)=>[(wx-view().x)*view().s,(wy-view().y)*view().s];
+let needBg=true,needBase=true,needOver=true;
+const dirtyBase=()=>{needBase=true};const dirtyOver=()=>{needOver=true};
+function invalidateAll(){needBg=needBase=needOver=true}
+let gesture=null,snap=null,snapView=null,hidden=new Set();
+
+function renderBg(){
+  const v=view(),B=BOARDS[st.board];gctx.setTransform(1,0,0,1,0,0);gctx.fillStyle=B.bg;gctx.fillRect(0,0,cbg.width,cbg.height);
+  if(st.grid){let g=st.gridSize;let step=g*v.s;let mult=1;while(step*mult<9)mult*=5;g*=mult;step=g*v.s;
+    const sx=Math.floor(v.x/g)*g,sy=Math.floor(v.y/g)*g;gctx.lineWidth=1;
+    for(const major of[false,true]){gctx.beginPath();gctx.strokeStyle=major?B.g2:B.g1;
+      for(let x=sx;x<v.x+W/v.s+g;x+=g){const isM=Math.round(x/g)%5===0;if(isM!==major)continue;const X=Math.round((x-v.x)*v.s*DPR)+.5;gctx.moveTo(X,0);gctx.lineTo(X,cbg.height)}
+      for(let y=sy;y<v.y+H/v.s+g;y+=g){const isM=Math.round(y/g)%5===0;if(isM!==major)continue;const Y=Math.round((y-v.y)*v.s*DPR)+.5;gctx.moveTo(0,Y);gctx.lineTo(cbg.width,Y)}
+      gctx.stroke()}}}
+function worldT(c){const v=view();c.setTransform(DPR*v.s,0,0,DPR*v.s,-v.x*v.s*DPR,-v.y*v.s*DPR)}
+function renderBase(){
+  bctx.setTransform(1,0,0,1,0,0);bctx.clearRect(0,0,cbase.width,cbase.height);
+  if(gesture&&snap){const v=view(),sv=snapView,k=v.s/sv.s;bctx.drawImage(snap,(sv.x-v.x)*v.s*DPR,(sv.y-v.y)*v.s*DPR,snap.width*k,snap.height*k);return}
+  worldT(bctx);const v=view(),x1=v.x,y1=v.y,x2=v.x+W/v.s,y2=v.y+H/v.s;
+  for(const o of doc.objs){if(hidden.has(o.id))continue;const b=bbox(o);if(b.x2<x1||b.x1>x2||b.y2<y1||b.y1>y2)continue;drawObj(bctx,o)}}
+const pf=p=>0.45+p*1.1;
+function drawPen(c,p,w,col){
+  const n=p.length/3;c.strokeStyle=col;c.fillStyle=col;c.lineCap='round';c.lineJoin='round';
+  if(n===1){c.beginPath();c.arc(p[0],p[1],w*pf(p[2])/2,0,Math.PI*2);c.fill();return}
+  if(n===2){c.lineWidth=w*pf(p[2]);c.beginPath();c.moveTo(p[0],p[1]);c.lineTo(p[3],p[4]);c.stroke();return}
+  let px=p[0],py=p[1],bw=-1;c.beginPath();c.moveTo(px,py);
+  for(let i=1;i<n-1;i++){const x=p[i*3],y=p[i*3+1],mx=(x+p[i*3+3])/2,my=(y+p[i*3+4])/2;const lw=Math.round(w*pf(p[i*3+2])*4)/4;
+    if(lw!==bw){if(bw>0){c.lineWidth=bw;c.stroke();c.beginPath();c.moveTo(px,py)}bw=lw}
+    c.quadraticCurveTo(x,y,mx,my);px=mx;py=my}
+  c.lineTo(p[n*3-3],p[n*3-2]);c.lineWidth=bw>0?bw:w;c.stroke()}
+function pathPts(c,p){c.beginPath();c.moveTo(p[0],p[1]);const n=p.length/3;if(n===1){c.lineTo(p[0]+.01,p[1]);return}
+  for(let i=1;i<n-1;i++){const mx=(p[i*3]+p[i*3+3])/2,my=(p[i*3+1]+p[i*3+4])/2;c.quadraticCurveTo(p[i*3],p[i*3+1],mx,my)}c.lineTo(p[n*3-3],p[n*3-2])}
+function shapePath(c,o){c.beginPath();const cp=o.cp;
+  switch(o.k){case'line':c.moveTo(cp[0][0],cp[0][1]);c.lineTo(cp[1][0],cp[1][1]);break;
+    case'rect':case'poly':c.moveTo(cp[0][0],cp[0][1]);for(let i=1;i<cp.length;i++)c.lineTo(cp[i][0],cp[i][1]);if(!o.open)c.closePath();break;
+    case'ellipse':{const e=ellParams(cp);c.ellipse(e.cx,e.cy,Math.max(.1,e.rx),Math.max(.1,e.ry),0,0,Math.PI*2);break}
+    case'curve':{const q=qctrl(cp);c.moveTo(cp[0][0],cp[0][1]);c.quadraticCurveTo(q[0],q[1],cp[2][0],cp[2][1]);break}}}
+const imgCache=new Map();
+function getImg(aid){let im=imgCache.get(aid);if(im)return im.complete&&im.naturalWidth?im:null;const src=doc.assets[aid];if(!src)return null;im=new Image();im.onload=()=>dirtyBase();im.src=src;imgCache.set(aid,im);return null}
+function drawObj(c,o){
+  const col=disp(o.c||'#000');
+  switch(o.t){
+    case'stroke':
+      if(o.k==='pen')drawPen(c,o.p,o.w,col);
+      else if(o.k==='dash'){c.save();c.setLineDash([o.w*2.6,o.w*2.4]);pathPts(c,o.p);c.strokeStyle=col;c.lineWidth=o.w;c.lineCap='round';c.lineJoin='round';c.stroke();c.restore()}
+      else{c.save();c.globalAlpha=BOARDS[st.board].dark?.45:.38;c.strokeStyle=col;c.fillStyle=col;c.lineCap='round';c.lineJoin='round';
+        if(o.fill){c.beginPath();c.moveTo(o.p[0],o.p[1]);for(let i=3;i<o.p.length;i+=3)c.lineTo(o.p[i],o.p[i+1]);c.closePath();c.fill()}
+        else{pathPts(c,o.p);c.lineWidth=o.w;c.stroke()}c.restore()}
+      break;
+    case'shape':c.save();c.strokeStyle=col;c.fillStyle=col;c.lineWidth=o.w;c.lineCap='round';c.lineJoin='round';if(o.dash)c.setLineDash([o.w*2.6,o.w*2.4]);
+      if(o.hl){c.globalAlpha=BOARDS[st.board].dark?.45:.38}shapePath(c,o);if(o.fill)c.fill();else c.stroke();c.restore();break;
+    case'dot':c.fillStyle=col;c.beginPath();c.arc(o.x,o.y,o.r,0,Math.PI*2);c.fill();break;
+    case'text':{const r=textRender(o);if(r)c.drawImage(r.img,o.x,o.y,r.img.width/RS,r.img.height/RS);break}
+    case'img':{const im=getImg(o.aid);if(im)c.drawImage(im,o.x,o.y,o.w,o.h);else{c.save();c.fillStyle='rgba(128,128,128,.15)';c.fillRect(o.x,o.y,o.w,o.h);c.restore()}break}
+    case'graph':drawGraph(c,o,col);break}}
+function niceStep(u){const target=40/u;const p=Math.pow(10,Math.floor(Math.log10(target)));for(const m of[1,2,5,10])if(m*p>=target)return m*p;return 10*p}
+function drawGraph(c,o,col){
+  const u=o.u,[x0,x1]=o.xr,[y0,y1]=o.yr,X=x=>o.x+x*u,Y=y=>o.y-y*u;
+  c.save();c.beginPath();c.rect(X(x0),Y(y1),(x1-x0)*u,(y1-y0)*u);c.clip();
+  const step=niceStep(u);c.lineWidth=1;c.strokeStyle=col;c.globalAlpha=.13;c.beginPath();
+  for(let x=Math.ceil(x0/step)*step;x<=x1;x+=step){c.moveTo(X(x),Y(y0));c.lineTo(X(x),Y(y1))}
+  for(let y=Math.ceil(y0/step)*step;y<=y1;y+=step){c.moveTo(X(x0),Y(y));c.lineTo(X(x1),Y(y))}c.stroke();c.globalAlpha=1;
+  const fs=clamp(u*0.33,9,15);c.font=`400 ${fs}px "Nanum Gothic",sans-serif`;c.fillStyle=col;c.strokeStyle=col;c.lineWidth=1.6;
+  const ax=clamp(0,x0,x1),ay=clamp(0,y0,y1);c.beginPath();c.moveTo(X(x0),Y(ay));c.lineTo(X(x1),Y(ay));c.moveTo(X(ax),Y(y0));c.lineTo(X(ax),Y(y1));c.stroke();
+  c.beginPath();c.moveTo(X(x1),Y(ay));c.lineTo(X(x1)-9,Y(ay)-4.5);c.lineTo(X(x1)-9,Y(ay)+4.5);c.fill();c.beginPath();c.moveTo(X(ax),Y(y1));c.lineTo(X(ax)-4.5,Y(y1)+9);c.lineTo(X(ax)+4.5,Y(y1)+9);c.fill();
+  c.textBaseline='top';c.textAlign='center';const fmt=v=>Math.abs(v)<1e-9?'':(+v.toFixed(4)).toString();
+  for(let x=Math.ceil(x0/step)*step;x<x1-step*0.3;x+=step){if(Math.abs(x)<1e-9||x-x0<step*0.3)continue;c.beginPath();c.moveTo(X(x),Y(ay)-3);c.lineTo(X(x),Y(ay)+3);c.stroke();c.fillText(fmt(x),X(x),Y(ay)+5)}
+  c.textAlign='right';c.textBaseline='middle';
+  for(let y=Math.ceil(y0/step)*step;y<y1-step*0.3;y+=step){if(Math.abs(y)<1e-9||y-y0<step*0.3)continue;c.beginPath();c.moveTo(X(ax)-3,Y(y));c.lineTo(X(ax)+3,Y(y));c.stroke();c.fillText(fmt(y),X(ax)-6,Y(y))}
+  c.font=`italic 400 ${fs*1.15}px "Times New Roman",serif`;c.textAlign='right';c.textBaseline='top';c.fillText('O',X(ax)-4,Y(ay)+4);
+  c.textBaseline='bottom';c.fillText('x',X(x1)-4,Y(ay)-6);c.textAlign='left';c.textBaseline='top';c.fillText('y',X(ax)+8,Y(y1)+2);
+  for(const g of graphPaths(o)){c.strokeStyle=disp(g.c);c.lineWidth=o.lw||2.4;c.lineJoin='round';c.lineCap='round';c.beginPath();
+    for(const ln of g.lines){c.moveTo(X(ln[0][0]),Y(ln[0][1]));for(let i=1;i<ln.length;i++)c.lineTo(X(ln[i][0]),Y(ln[i][1]))}c.stroke()}
+  c.restore()}
+
+/* ---------------------------------------------------------------- overlay */
+let act=null;      // active pen/mouse action
+let lassoPts=null,eraserPos=null,lasers=[],lasoBox=null;
+function renderOver(){
+  octx.setTransform(1,0,0,1,0,0);octx.clearRect(0,0,cover.width,cover.height);worldT(octx);const v=view(),px=1/v.s;
+  if(act&&act.type==='draw'){const col=disp(st.colors[st.ci]);
+    if(act.shape)drawObj(octx,act.shape);
+    else if(act.straight){const p=act.pts;drawObj(octx,{t:'shape',k:'line',cp:[[p[0],p[1]],[p[p.length-3],p[p.length-2]]],w:act.w,c:st.colors[st.ci],dash:act.kind==='dash',hl:act.kind==='hl'})}
+    else drawObj(octx,{t:'stroke',k:act.kind,p:act.pts,w:act.w,c:st.colors[st.ci]})}
+  if(act&&(act.type==='move'||act.type==='scale'||act.type==='handle')&&act.preview)act.preview.forEach(o=>drawObj(octx,o));
+  if(lassoPts&&lassoPts.length>1){octx.save();octx.lineWidth=1.5*px;octx.setLineDash([6*px,5*px]);octx.strokeStyle='#5aa2ff';octx.fillStyle='rgba(90,162,255,.08)';octx.beginPath();
+    if(st.lassoMode==='box'){const a=lassoPts[0],b=lassoPts[lassoPts.length-1];octx.rect(a[0],a[1],b[0]-a[0],b[1]-a[1])}else{octx.moveTo(lassoPts[0][0],lassoPts[0][1]);lassoPts.forEach(p=>octx.lineTo(p[0],p[1]));octx.closePath()}
+    octx.fill();octx.stroke();octx.restore()}
+  // selection
+  const so=selObjs();if(so.length){const prev=act&&act.preview?act.preview:so;const b=unionBB(prev);if(b){const pad=6*px;octx.save();octx.lineWidth=1.5*px;octx.setLineDash([5*px,4*px]);octx.strokeStyle='#5aa2ff';
+      octx.strokeRect(b.x1-pad,b.y1-pad,b.x2-b.x1+pad*2,b.y2-b.y1+pad*2);octx.setLineDash([]);
+      if(!isSingleShape()){octx.fillStyle='#fff';octx.beginPath();octx.arc(b.x2+pad,b.y2+pad,8*px,0,Math.PI*2);octx.fill();octx.stroke()}
+      octx.restore()}
+    if(isSingleShape()){const o=prev[0];octx.save();octx.lineWidth=2*px;for(const p of handlePts(o)){octx.fillStyle='#fff';octx.strokeStyle='#5aa2ff';octx.beginPath();octx.arc(p[0],p[1],9*px,0,Math.PI*2);octx.fill();octx.stroke()}octx.restore()}}
+  if(eraserPos){octx.save();octx.lineWidth=1.5*px;octx.strokeStyle=BOARDS[st.board].dark?'rgba(255,255,255,.7)':'rgba(0,0,0,.5)';octx.fillStyle='rgba(255,255,255,.15)';octx.beginPath();octx.arc(eraserPos[0],eraserPos[1],st.er*px,0,Math.PI*2);octx.fill();octx.stroke();octx.restore()}
+  // lasers
+  if(lasers.length){const now=performance.now(),dur=st.laserDur*1000;octx.save();octx.lineCap='round';octx.lineJoin='round';
+    lasers=lasers.filter(L=>L.live||now-L.end<dur+400);
+    for(const L of lasers){const pts=L.pts;if(!pts.length)continue;const age=L.live?0:now-L.end;const a=age<dur?1:Math.max(0,1-(age-dur)/400);if(a<=0)continue;
+      for(const [w,al,colr] of[[14,.18,'#ff3b30'],[7,.45,'#ff3b30'],[2.6,1,'#fff2ee']]){octx.globalAlpha=a*al;octx.strokeStyle=colr;octx.lineWidth=w*px;octx.beginPath();octx.moveTo(pts[0][0],pts[0][1]);for(const p of pts)octx.lineTo(p[0],p[1]);if(pts.length===1)octx.lineTo(pts[0][0]+.01,pts[0][1]);octx.stroke()}}
+    octx.restore();if(lasers.length)needOver=true}}
+function frame(){requestAnimationFrame(frame);if(!doc)return;if(needBg){needBg=false;renderBg()}if(needBase){needBase=false;renderBase()}if(needOver){needOver=false;renderOver()}}
+
+/* ================================================================ selection helpers */
+const selObjs=()=>sel.map(byId).filter(Boolean);
+const isSingleShape=()=>{const s=selObjs();return s.length===1&&s[0].t==='shape'};
+function handlePts(o){return o.k==='ellipse'?[o.cp[0],o.cp[1]]:o.cp}
+function selBox(){const b=unionBB(selObjs());if(!b)return null;const pad=6/view().s;return{x1:b.x1-pad,y1:b.y1-pad,x2:b.x2+pad,y2:b.y2+pad}}
+function setSel(ids){sel=ids;hidden=new Set();dirtyBase();dirtyOver();showSelbar()}
+function clearSel(){if(!sel.length)return;sel=[];hideSelbar();dirtyOver()}
+function showSelbar(){
+  const bar=$('#selbar');const so=selObjs();if(!so.length||act){bar.hidden=true;return}
+  const b=selBox();const[sx1,sy1]=toScreen(b.x1,b.y1),[sx2,sy2]=toScreen(b.x2,b.y2);const r=stage.getBoundingClientRect();
+  const items=[['copy','복사'],['cut','잘라내기'],['dup','복제'],['color','색 바꾸기']];
+  if(so.length===1&&so[0].t==='shape'){items.push(['ndiv','n등분']);if(so[0].k==='rect')items.push(['free','자유 사각형'])}
+  if(so.length===1&&so[0].t==='text')items.unshift(['edit','편집']);
+  if(so.length===1&&so[0].t==='graph')items.unshift(['editg','편집']);
+  items.push(['front','맨 앞']);items.push(['del','삭제']);
+  bar.innerHTML=items.map(([k,l])=>`<button data-a="${k}" class="${k==='del'?'dan':''}">${l}</button>`).join('');bar.hidden=false;
+  const bw=bar.offsetWidth,bh=bar.offsetHeight;let x=r.left+(sx1+sx2)/2-bw/2,y=r.top+sy1-bh-12;if(y<r.top+6)y=r.top+sy2+12;if(y+bh>r.bottom-6)y=r.top+8;
+  x=clamp(x,8,window.innerWidth-bw-8);bar.style.left=x+'px';bar.style.top=y+'px'}
+function hideSelbar(){$('#selbar').hidden=true}
+$('#selbar').addEventListener('click',e=>{const a=e.target.closest('button')?.dataset.a;if(!a)return;selAction(a)});
+function selAction(a){
+  const so=selObjs();if(!so.length&&a!=='paste')return;
+  if(a==='del'){commit(doc.objs.filter(o=>!sel.includes(o.id)));sel=[];hideSelbar()}
+  else if(a==='copy'){clip=so.map(o=>({...o}));toast('복사했어요')}
+  else if(a==='cut'){clip=so.map(o=>({...o}));commit(doc.objs.filter(o=>!sel.includes(o.id)));sel=[];hideSelbar();toast('잘라냈어요')}
+  else if(a==='dup'){const d=20/view().s;const n=so.map(o=>({...moveObj(o,d,d),id:nid()}));commit(doc.objs.concat(n));setSel(n.map(o=>o.id))}
+  else if(a==='color'){const c=st.colors[st.ci];commit(doc.objs.map(o=>sel.includes(o.id)?(o.t==='graph'?{...o,c,fns:o.fns}:{...o,c}):o),true);textCache.clear();dirtyBase();toast('현재 색으로 바꿨어요')}
+  else if(a==='front'){commit(doc.objs.filter(o=>!sel.includes(o.id)).concat(so),true)}
+  else if(a==='edit'){openTextEditor(so[0])}
+  else if(a==='editg'){openGraph(null,so[0])}
+  else if(a==='ndiv'){const o=so[0];if(o.k==='line'||o.k==='curve')openNdiv(o,null);else toast('나눌 변을 길게 누르세요')}
+  else if(a==='free'){const o=so[0];commit(doc.objs.map(x=>x.id===o.id?{...x,k:'poly'}:x),true);toast('자유 사각형: 꼭짓점을 자유롭게 움직일 수 있어요')}
+  else if(a==='paste')paste();
+  showSelbar()}
+function paste(){if(!clip||!clip.length)return;const b=unionBB(clip);const v=view();const cx=v.x+W/v.s/2,cy=v.y+H/v.s/2;const dx=cx-(b.x1+b.x2)/2,dy=cy-(b.y1+b.y2)/2;
+  const n=clip.map(o=>({...moveObj(o,dx,dy),id:nid()}));commit(doc.objs.concat(n));setSel(n.map(o=>o.id));if(st.tool!=='lasso')setTool('lasso',true)}
+
+/* ================================================================ shape recognition */
+function rdp(pts,eps){if(pts.length<3)return pts.slice();let md=0,idx=0;const a=pts[0],b=pts[pts.length-1];for(let i=1;i<pts.length-1;i++){const d=segDist(pts[i][0],pts[i][1],a[0],a[1],b[0],b[1]);if(d>md){md=d;idx=i}}
+  if(md>eps){const l=rdp(pts.slice(0,idx+1),eps),r=rdp(pts.slice(idx),eps);return l.slice(0,-1).concat(r)}return[a,b]}
+function pathLen(pts){let L=0;for(let i=1;i<pts.length;i++)L+=dist(pts[i-1][0],pts[i-1][1],pts[i][0],pts[i][1]);return L}
+function pointAtLen(pts,target){let L=0;for(let i=1;i<pts.length;i++){const d=dist(pts[i-1][0],pts[i-1][1],pts[i][0],pts[i][1]);if(L+d>=target){const t=(target-L)/(d||1);return[pts[i-1][0]+(pts[i][0]-pts[i-1][0])*t,pts[i-1][1]+(pts[i][1]-pts[i-1][1])*t]}L+=d}return pts[pts.length-1]}
+function recognize(flat,kind,w,c){
+  const pts=[];for(let i=0;i<flat.length;i+=3)pts.push([flat[i],flat[i+1]]);if(pts.length<3)return null;
+  const L=pathLen(pts);if(L<18/view().s)return null;
+  let x1=Infinity,y1=Infinity,x2=-Infinity,y2=-Infinity;pts.forEach(p=>{x1=Math.min(x1,p[0]);x2=Math.max(x2,p[0]);y1=Math.min(y1,p[1]);y2=Math.max(y2,p[1])});
+  const diag=Math.hypot(x2-x1,y2-y1);const s=pts[0],e=pts[pts.length-1];const closed=dist(s[0],s[1],e[0],e[1])<Math.max(14/view().s,0.2*diag)&&L>diag*1.6;
+  const base={t:'shape',w,c,dash:kind==='dash',hl:kind==='hl',id:nid()};const S=p=>snapPt(p[0],p[1]);
+  if(!closed){
+    const chord=dist(s[0],s[1],e[0],e[1]);let md=0;pts.forEach(p=>{md=Math.max(md,segDist(p[0],p[1],s[0],s[1],e[0],e[1]))});
+    if(md<Math.max(0.07*chord,3/view().s))return{...base,k:'line',cp:[S(s),S(e)]};
+    const simp=rdp(pts,Math.max(0.06*diag,5/view().s));
+    // one-sided bulge -> quadratic curve (parabola)
+    const side=p=>Math.sign((e[0]-s[0])*(p[1]-s[1])-(e[1]-s[1])*(p[0]-s[0]));let pos=0,neg=0;pts.forEach(p=>{const sd=side(p);if(sd>0)pos++;else if(sd<0)neg++});
+    const oneSided=Math.min(pos,neg)<pts.length*0.08;
+    let sharp=false;if(simp.length===3){const[a,b,cc]=simp;const v1=[a[0]-b[0],a[1]-b[1]],v2=[cc[0]-b[0],cc[1]-b[1]];const ang=Math.acos(clamp((v1[0]*v2[0]+v1[1]*v2[1])/(Math.hypot(...v1)*Math.hypot(...v2)||1),-1,1))*180/Math.PI;
+      // corner sharpness: check midpoint distance vs path near vertex
+      const near=pts.reduce((m,p)=>Math.min(m,dist(p[0],p[1],b[0],b[1])),Infinity);sharp=ang<110&&near<0.03*diag}
+    if(oneSided&&!sharp&&simp.length<=5){const mid=pointAtLen(pts,L/2);return{...base,k:'curve',cp:[S(s),S(mid),S(e)]}}
+    if(simp.length<=8)return{...base,k:'poly',open:true,cp:simp.map(S)};return null}
+  // closed
+  const cx=pts.reduce((a,p)=>a+p[0],0)/pts.length,cy=pts.reduce((a,p)=>a+p[1],0)/pts.length;
+  let simp=rdp(pts,Math.max(0.09*diag,6/view().s));if(simp.length>2&&dist(simp[0][0],simp[0][1],simp[simp.length-1][0],simp[simp.length-1][1])<0.2*diag)simp=simp.slice(0,-1);
+  // merge near-collinear vertices
+  const clean=[];for(let i=0;i<simp.length;i++){const a=simp[(i-1+simp.length)%simp.length],b=simp[i],cc=simp[(i+1)%simp.length];const v1=[a[0]-b[0],a[1]-b[1]],v2=[cc[0]-b[0],cc[1]-b[1]];
+    const ang=Math.acos(clamp((v1[0]*v2[0]+v1[1]*v2[1])/(Math.hypot(...v1)*Math.hypot(...v2)||1),-1,1))*180/Math.PI;if(ang<160)clean.push(b)}
+  // ellipse test: fit to bbox ellipse
+  const rx=(x2-x1)/2,ry=(y2-y1)/2,ex=(x1+x2)/2,ey=(y1+y2)/2;let err=0;pts.forEach(p=>{const d=Math.hypot((p[0]-ex)/(rx||1),(p[1]-ey)/(ry||1));err+=Math.abs(d-1)});err/=pts.length;
+  if(err<0.09&&clean.length!==3&&!(clean.length===4&&err>0.06))return{...base,k:'ellipse',cp:[S([x1,y1]),S([x2,y2])]};
+  if(clean.length===4){const axis=clean.every((p,i)=>{const q=clean[(i+1)%4];const ang=Math.abs(Math.atan2(q[1]-p[1],q[0]-p[0])*180/Math.PI)%90;return ang<14||ang>76});
+    if(axis){const a=S([x1,y1]),b=S([x2,y2]);return{...base,k:'rect',cp:[[a[0],a[1]],[b[0],a[1]],[b[0],b[1]],[a[0],b[1]]]}}return{...base,k:'poly',cp:clean.map(S)}}
+  if(clean.length>=3&&clean.length<=10)return{...base,k:'poly',cp:clean.map(S)};
+  if(err<0.16)return{...base,k:'ellipse',cp:[S([x1,y1]),S([x2,y2])]};return null}
+
+/* ================================================================ eraser */
+function eraseAt(work,x,y,r){
+  let changed=false;const out=[];
+  for(const o of work){if(!hitObj(o,x,y,r)){out.push(o);continue}
+    if(st.eraserMode==='pixel'&&o.t==='stroke'&&!o.fill){const p=o.p;let cur=[];const pieces=[];
+      for(let i=0;i<p.length;i+=3){if(dist(p[i],p[i+1],x,y)<=r+o.w/2){if(cur.length>=3)pieces.push(cur);cur=[]}else cur.push(p[i],p[i+1],p[i+2])}
+      if(cur.length>=3)pieces.push(cur);
+      if(pieces.length===1&&pieces[0].length===p.length){out.push(o);continue}
+      pieces.forEach(pp=>out.push({...o,id:nid(),p:pp}));changed=true}
+    else if(st.eraserMode==='pixel'&&o.t!=='stroke'){out.push(o)}
+    else changed=true}
+  return changed?out:work}
+
+/* ================================================================ input */
+const touches=new Map();let penSeen=false,spaceDown=false,lastTap={t:0,x:0,y:0};
+function stagePos(e){const r=stage.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]}
+stage.addEventListener('touchstart',e=>{if(e.target.closest('#zoomlbl'))return;e.preventDefault()},{passive:false});
+stage.addEventListener('gesturestart',e=>e.preventDefault());
+document.addEventListener('gesturestart',e=>e.preventDefault());
+stage.addEventListener('contextmenu',e=>e.preventDefault());
+stage.addEventListener('pointerdown',onDown);stage.addEventListener('pointermove',onMove);
+stage.addEventListener('pointerup',onUp);stage.addEventListener('pointercancel',onCancel);
+function beginGesture(){if(gesture)return;gesture={start:performance.now(),moved:false,max:0,pts:new Map()};snap=document.createElement('canvas');snap.width=cbase.width;snap.height=cbase.height;
+  if(needBase){needBase=false;renderBase()}snap.getContext('2d').drawImage(cbase,0,0);snapView={...view()};hideSelbar();setGestureBase()}
+function setGestureBase(){gesture.base={view:{...view()},pts:new Map([...touches].map(([k,v])=>[k,[...v]]))}}
+function endGesture(){if(!gesture)return;const g=gesture;gesture=null;snap=null;needBase=true;needBg=true;needOver=true;showSelbar();scheduleSave(true);
+  const dt=performance.now()-g.start;if(!g.moved&&dt<350){if(g.max===2)undo();else if(g.max===3)redo()}}
+function updateGesture(){const g=gesture,b=g.base;const ids=[...touches.keys()];const v=view();
+  if(ids.length===1||g.mouse){const id=ids[0];const p=touches.get(id),p0=b.pts.get(id);if(!p0)return;v.x=b.view.x-(p[0]-p0[0])/v.s;v.y=b.view.y-(p[1]-p0[1])/v.s}
+  else if(ids.length>=2){const[a,c]=ids;const pa=touches.get(a),pc=touches.get(c),qa=b.pts.get(a),qc=b.pts.get(c);if(!qa||!qc)return;
+    const d0=dist(qa[0],qa[1],qc[0],qc[1])||1,d1=dist(pa[0],pa[1],pc[0],pc[1]);const m0=[(qa[0]+qc[0])/2,(qa[1]+qc[1])/2],m1=[(pa[0]+pc[0])/2,(pa[1]+pc[1])/2];
+    const s=clamp(b.view.s*d1/d0,0.1,10);const wx=m0[0]/b.view.s+b.view.x,wy=m0[1]/b.view.s+b.view.y;v.s=s;v.x=wx-m1[0]/s;v.y=wy-m1[1]/s}
+  needBg=needBase=needOver=true;updateZoomLbl()}
+function onDown(e){
+  if(e.target.closest('#zoomlbl'))return;
+  const sp=stagePos(e);
+  if(e.pointerType==='touch'){
+    if(act&&act.ptype==='pen')return; // palm rejection
+    touches.set(e.pointerId,sp);try{stage.setPointerCapture(e.pointerId)}catch(_){}
+    const drawWithFinger=st.finger&&!penSeen;
+    if(drawWithFinger&&touches.size===1&&!gesture){startAction(e,sp);return}
+    if(act&&act.ptype==='touch'){cancelAct()}
+    beginGesture();gesture.max=Math.max(gesture.max,touches.size);setGestureBase();return}
+  if(e.pointerType==='pen')penSeen=true;
+  if(e.pointerType==='mouse'&&(e.button===1||e.button===2||spaceDown)){touches.set(e.pointerId,sp);beginGesture();gesture.mouse=true;gesture.max=9;setGestureBase();try{stage.setPointerCapture(e.pointerId)}catch(_){}return}
+  if(e.pointerType==='mouse'&&e.button!==0)return;
+  if(gesture&&e.pointerType==='pen'){touches.clear();gesture.moved=true;endGesture()}
+  try{stage.setPointerCapture(e.pointerId)}catch(_){}
+  startAction(e,sp)}
+function onMove(e){
+  const sp=stagePos(e);
+  if(touches.has(e.pointerId)&&gesture){touches.set(e.pointerId,sp);const b=gesture.base.pts.get(e.pointerId);if(b&&dist(b[0],b[1],sp[0],sp[1])>10)gesture.moved=true;updateGesture();return}
+  if(!act||act.pid!==e.pointerId){if(st.tool==='eraser'&&e.pointerType==='mouse'){eraserPos=toWorld(...sp);dirtyOver()}return}
+  const evs=e.getCoalescedEvents?e.getCoalescedEvents():[e];for(const ce of(evs.length?evs:[e]))moveAction(ce,stagePos(ce));dirtyOver()}
+function onUp(e){
+  if(touches.has(e.pointerId)){touches.delete(e.pointerId);if(gesture){if(touches.size===0)endGesture();else setGestureBase()}if(!act||act.pid!==e.pointerId)return}
+  if(act&&act.pid===e.pointerId)endAction(e,stagePos(e))}
+function onCancel(e){touches.delete(e.pointerId);if(gesture&&touches.size===0)endGesture();if(act&&act.pid===e.pointerId)cancelAct()}
+function cancelAct(){if(act&&act.timer)clearTimeout(act.timer);if(act&&act.type==='erase')doc.objs=hist[hi];if(act&&act.type==='laser')act.L.live=false;act=null;lassoPts=null;eraserPos=null;hidden=new Set();dirtyBase();dirtyOver()}
+const pressureOf=e=>e.pointerType==='pen'?(e.pressure||0.5):0.5;
+function nearHandle(o,x,y){const r=16/view().s;const hp=handlePts(o);for(let i=0;i<hp.length;i++)if(dist(x,y,hp[i][0],hp[i][1])<=r)return i;return-1}
+
+function startAction(e,sp){
+  const[x,y]=toWorld(...sp);const base={pid:e.pointerId,ptype:e.pointerType,sx:sp[0],sy:sp[1],x0:x,y0:y,t0:performance.now()};hideSelbar();
+  let tool=st.tool;
+  // handles of a selected shape can be grabbed from pen tools too
+  if(isSingleShape()&&['pen','dash','hl','lasso'].includes(tool)){const o=selObjs()[0];const hIdx=nearHandle(o,x,y);
+    if(hIdx>=0){act={...base,type:'handle',o,hi:hIdx,preview:[o]};hidden=new Set([o.id]);dirtyBase();return}}
+  if(['pen','dash','hl'].includes(tool)){
+    if(sel.length)clearSel();
+    let kind=tool;if(M('ctrl')&&tool==='pen')kind='dash';
+    act={...base,type:'draw',kind,w:st[tool],pts:[x,y,pressureOf(e)],straight:M('shift'),anchor:[sp[0],sp[1]],lastT:performance.now()};
+    armHold();return}
+  if(tool==='eraser'){act={...base,type:'erase',work:doc.objs};eraserPos=[x,y];const r=st.er/view().s;act.work=eraseAt(act.work,x,y,r);applyErase();return}
+  if(tool==='laser'){const L={pts:[[x,y]],live:true,end:0};lasers.push(L);act={...base,type:'laser',L};dirtyOver();return}
+  if(tool==='lasso'){
+    const b=selBox();
+    if(b&&!isSingleShape()){const pad=8/view().s,hr=16/view().s;if(dist(x,y,b.x2+pad-6/view().s,b.y2+pad-6/view().s)<=hr*1.3){act={...base,type:'scale',b,preview:selObjs()};hidden=new Set(sel);dirtyBase();return}}
+    if(b&&x>=b.x1&&x<=b.x2&&y>=b.y1&&y<=b.y2){
+      const now=performance.now(),dbl=now-lastTap.t<350&&dist(sp[0],sp[1],lastTap.x,lastTap.y)<24;lastTap={t:now,x:sp[0],y:sp[1]};
+      const so=selObjs();if(dbl&&so.length===1&&so[0].t==='text'){openTextEditor(so[0]);return}
+      act={...base,type:'move',preview:so};hidden=new Set(sel);dirtyBase();
+      if(isSingleShape())act.timer=setTimeout(()=>longPressShape(x,y),550);
+      return}
+    clearSel();act={...base,type:'lasso'};lassoPts=[[x,y]];return}
+  if(tool==='text'||tool==='latex'){const hitT=[...doc.objs].reverse().find(o=>o.t==='text'&&hitObj(o,x,y,4/view().s));if(hitT)openTextEditor(hitT);else openTextEditor(null,[x,y],tool==='latex');return}
+  if(tool==='graph'){const hitG=[...doc.objs].reverse().find(o=>o.t==='graph'&&hitObj(o,x,y,0));openGraph([x,y],hitG||null);return}
+  if(tool==='eyedrop'){pickColor(sp);return}}
+function armHold(){if(!st.hold||!act)return;clearTimeout(act.timer);act.timer=setTimeout(()=>{if(act&&act.type==='draw'&&!act.shape&&!act.straight)tryRecognize()},520)}
+function tryRecognize(){const sh=recognize(act.pts,act.kind,act.w,st.colors[st.ci]);if(sh){act.shape=sh;dirtyOver();if(navigator.vibrate)try{navigator.vibrate(8)}catch(_){}}}
+function moveAction(e,sp){
+  const[x,y]=toWorld(...sp);
+  switch(act.type){
+    case'draw':{if(act.shape){ // after snap: allow resizing the recognized shape by dragging end
+        const sh=act.shape;if(sh.k==='line'){act.shape={...sh,cp:[sh.cp[0],snapPt(x,y)]}}return}
+      const p=act.pts,lx=p[p.length-3],ly=p[p.length-2];if(dist(lx,ly,x,y)*view().s<0.6)return;p.push(x,y,pressureOf(e));
+      if(dist(sp[0],sp[1],act.anchor[0],act.anchor[1])>4){act.anchor=[sp[0],sp[1]];armHold()}break}
+    case'erase':{eraserPos=[x,y];const r=st.er/view().s;const w2=eraseAt(act.work,x,y,r);if(w2!==act.work){act.work=w2;applyErase()}break}
+    case'laser':act.L.pts.push([x,y]);break;
+    case'lasso':lassoPts.push([x,y]);break;
+    case'move':{if(dist(sp[0],sp[1],act.sx,act.sy)>6&&act.timer){clearTimeout(act.timer);act.timer=null}const dx=x-act.x0,dy=y-act.y0;act.preview=selObjs().map(o=>moveObj(o,dx,dy));break}
+    case'scale':{const b=act.b;const w0=b.x2-b.x1,h0=b.y2-b.y1;const k=clamp(Math.max((x-b.x1)/w0,(y-b.y1)/h0),0.05,40);act.preview=selObjs().map(o=>xform(o,(px,py)=>[b.x1+(px-b.x1)*k,b.y1+(py-b.y1)*k],k));break}
+    case'handle':act.preview=[editHandle(act.o,act.hi,x,y)];break}}
+function editHandle(o,i,x,y){
+  const[sx,sy]=snapPt(x,y);const cp=o.cp.map(p=>[...p]);
+  if(o.k==='rect'&&!M('alt')){const opp=cp[(i+2)%4];const x1=Math.min(opp[0],sx),x2=Math.max(opp[0],sx),y1=Math.min(opp[1],sy),y2=Math.max(opp[1],sy);
+    return{...o,cp:[[x1,y1],[x2,y1],[x2,y2],[x1,y2]]}}
+  if(o.k==='rect'&&M('alt')){cp[i]=[sx,sy];return{...o,k:'poly',cp}}
+  cp[i]=[sx,sy];
+  if(o.k==='curve'&&M('alt')){ // perfect parabola symmetric about vertical axis through vertex cp[1]
+    if(i===1){cp[2]=[2*cp[1][0]-cp[0][0],cp[0][1]]}else if(i===0){cp[2]=[2*cp[1][0]-cp[0][0],cp[0][1]]}else{cp[0]=[2*cp[1][0]-cp[2][0],cp[2][1]]}}
+  return{...o,cp}}
+function applyErase(){hidden=new Set();doc.objs=act.work;dirtyBase();dirtyOver()}
+function endAction(e,sp){
+  const a=act;act=null;if(a.timer)clearTimeout(a.timer);
+  switch(a.type){
+    case'draw':{
+      let o;
+      if(!a.shape&&(M('alt')||a.forceShape))a.shape=recognize(a.pts,a.kind,a.w,st.colors[st.ci]);
+      if(a.shape){o=a.shape;commit(doc.objs.concat(o));sel=[o.id];dirtyOver();showSelbar();break}
+      if(a.straight){const p=a.pts;o={id:nid(),t:'shape',k:'line',cp:[snapPt(p[0],p[1]),snapPt(p[p.length-3],p[p.length-2])],w:a.w,c:st.colors[st.ci],dash:a.kind==='dash',hl:a.kind==='hl'};commit(doc.objs.concat(o));break}
+      const p=a.pts;o={id:nid(),t:'stroke',k:a.kind,p:p.map(v=>Math.round(v*100)/100),w:a.w,c:st.colors[st.ci]};
+      if(a.kind==='hl'&&p.length>=18){const pts=strokePts(o);const L=pathLen(pts);const s=pts[0],en=pts[pts.length-1];if(L>80/view().s&&dist(s[0],s[1],en[0],en[1])<Math.max(22/view().s,0.12*L))o.fill=true}
+      commit(doc.objs.concat(o));break}
+    case'erase':{eraserPos=null;if(a.work!==hist[hi])commit(a.work);else{doc.objs=hist[hi]}dirtyOver();break}
+    case'laser':a.L.live=false;a.L.end=performance.now();dirtyOver();break;
+    case'lasso':{const poly=lassoPts;lassoPts=null;if(!poly||poly.length<2){dirtyOver();break}
+      let test;if(st.lassoMode==='box'){const p0=poly[0],p1=poly[poly.length-1];const bx1=Math.min(p0[0],p1[0]),bx2=Math.max(p0[0],p1[0]),by1=Math.min(p0[1],p1[1]),by2=Math.max(p0[1],p1[1]);test=(x,y)=>x>=bx1&&x<=bx2&&y>=by1&&y<=by2}
+      else test=(x,y)=>pip(x,y,poly);
+      const ids=doc.objs.filter(o=>{const sp2=samplePts(o);if(!sp2.length)return false;let n=0;for(const p of sp2)if(test(p[0],p[1]))n++;return n/sp2.length>=0.5}).map(o=>o.id);
+      setSel(ids);break}
+    case'move':case'scale':{hidden=new Set();if(a.preview&&a.preview!==undefined){const moved=dist(sp[0],sp[1],a.sx,a.sy)>3;
+        if(moved){const m=new Map(a.preview.map(o=>[o.id,o]));commit(doc.objs.map(o=>m.get(o.id)||o),true)}else{dirtyBase()}}
+      dirtyOver();showSelbar();break}
+    case'handle':{hidden=new Set();const n=a.preview[0];if(n!==a.o)commit(doc.objs.map(o=>o.id===n.id?n:o),true);else dirtyBase();dirtyOver();showSelbar();break}}
+  dirtyOver()}
+function longPressShape(x,y){
+  if(!act||act.type!=='move')return;const o=selObjs()[0];hidden=new Set();act=null;dirtyBase();dirtyOver();
+  if(o.k==='line'||o.k==='curve'){openNdiv(o,null);return}
+  if(o.k==='ellipse'){toast('타원은 n등분을 지원하지 않아요');return}
+  const es=edges(o);let best=-1,bd=Infinity;es.forEach((ed,i)=>{const d=segDist(x,y,ed[0][0],ed[0][1],ed[1][0],ed[1][1]);if(d<bd){bd=d;best=i}});
+  if(best>=0&&bd<24/view().s)openNdiv(o,es[best]);else toast('변 위를 길게 누르세요')}
+
+/* ---------------------------------------------------------------- wheel & keys */
+let wheelT=null;
+stage.addEventListener('wheel',e=>{e.preventDefault();const v=view();if(!gesture){beginGesture();gesture.wheel=true;gesture.moved=true}
+  if(e.ctrlKey||e.metaKey){const[sx,sy]=stagePos(e);const k=Math.exp(-e.deltaY*0.0045);const s=clamp(v.s*k,0.1,10);const wx=sx/v.s+v.x,wy=sy/v.s+v.y;v.s=s;v.x=wx-sx/s;v.y=wy-sy/s}
+  else if(e.shiftKey){v.x+=(e.deltaY||e.deltaX)/v.s}else{v.x+=e.deltaX/v.s;v.y+=e.deltaY/v.s}
+  needBg=needBase=needOver=true;updateZoomLbl();clearTimeout(wheelT);wheelT=setTimeout(()=>{if(gesture&&gesture.wheel){gesture.moved=true;endGesture()}},160)},{passive:false});
+window.addEventListener('keydown',e=>{
+  if(e.target.closest('input,textarea'))return;
+  if(e.key==='Shift')mods.shift=true;if(e.key==='Control'||e.key==='Meta')mods.ctrl=true;if(e.key==='Alt')mods.alt=true;
+  const cmd=e.metaKey||e.ctrlKey,k=e.key.toLowerCase();
+  if(cmd){if(k==='z'){e.preventDefault();e.shiftKey?redo():undo()}else if(k==='y'){e.preventDefault();redo()}else if(k==='s'){e.preventDefault();saveFile()}
+    else if(k==='c'){if(sel.length){e.preventDefault();selAction('copy')}}else if(k==='x'){if(sel.length){e.preventDefault();selAction('cut')}}else if(k==='v'){if(clip){e.preventDefault();paste()}}
+    else if(k==='a'){e.preventDefault();setTool('lasso',true);setSel(doc.objs.map(o=>o.id))}
+    else if(k==='['||k===']'){e.preventDefault();cycleTab(k===']'?1:-1)}else if(/^[1-9]$/.test(k)){e.preventDefault();const t=openTabs[+k-1];if(t)switchTo(t)}return}
+  if(e.key===' '){spaceDown=true;e.preventDefault();return}
+  const map={s:'pen',d:'dash',h:'hl',e:'eraser',p:'laser',l:'lasso',t:'text'};
+  if(map[k]){setTool(map[k]);return}
+  if(/^[1-8]$/.test(k)){setColor(+k-1);return}
+  if(k==='w'){toggleGrid();return}
+  if(e.key==='Backspace'||e.key==='Delete'){if(sel.length){e.preventDefault();selAction('del')}return}
+  if(e.key==='Escape'){clearSel();closeAll()}});
+window.addEventListener('keyup',e=>{if(e.key==='Shift')mods.shift=false;if(e.key==='Control'||e.key==='Meta')mods.ctrl=false;if(e.key==='Alt')mods.alt=false;if(e.key===' ')spaceDown=false});
+window.addEventListener('blur',()=>{mods.shift=mods.ctrl=mods.alt=false;spaceDown=false});
+window.addEventListener('paste',e=>{if(e.target.closest('input,textarea'))return;const items=[...(e.clipboardData?.items||[])];const im=items.find(i=>i.type.startsWith('image/'));
+  if(im){e.preventDefault();const f=im.getAsFile();if(f)insertImageFile(f)}});
+
+/* ================================================================ toolbar */
+function setTool(t,silent){if(t!=='lasso'&&t!=='eyedrop'&&sel.length&&!(isSingleShape()&&['pen','dash','hl'].includes(t)))clearSel();st.tool=t;saveSettings();
+  document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('on',b.dataset.tool===t));eraserPos=null;dirtyOver();updateWdot();if(!silent&&TOOLNAMES[t])toast(TOOLNAMES[t],900)}
+document.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',e=>{const t=b.dataset.tool;if(st.tool===t&&['pen','dash','hl','eraser','laser','lasso'].includes(t)){openToolPop(b);return}setTool(t)}));
+function renderSwatches(){$('#swatches').innerHTML=st.colors.map((c,i)=>`<button class="sw${i===st.ci?' on':''}" data-ci="${i}" style="background:${c}" aria-label="색상 ${i+1}"></button>`).join('')}
+$('#swatches').addEventListener('click',e=>{const b=e.target.closest('.sw');if(!b)return;const i=+b.dataset.ci;if(i===st.ci)openColorPop(b,i);else setColor(i)});
+function setColor(i){st.ci=i;saveSettings();renderSwatches();updateWdot();if(['eraser','laser','lasso','eyedrop'].includes(st.tool)&&!sel.length)setTool('pen',true)}
+function updateWdot(){const t=['pen','dash','hl'].includes(st.tool)?st.tool:'pen';const w=st[t];const d=clamp(w*(t==='hl'?0.7:2),4,26);const i=$('#wdot i');i.style.width=d+'px';i.style.height=d+'px';i.style.background=st.colors[st.ci];i.style.opacity=t==='hl'?.55:1}
+$('#wdot').addEventListener('click',()=>openToolPop($('#wdot')));
+function toggleGrid(){st.grid=!st.grid;saveSettings();$('#bGrid').classList.toggle('on',st.grid);needBg=true}
+$('#bGrid').addEventListener('click',toggleGrid);
+$('#bUndo').addEventListener('click',undo);$('#bRedo').addEventListener('click',redo);
+document.querySelectorAll('[data-mod]').forEach(b=>b.addEventListener('click',()=>{const k=b.dataset.mod;vmods[k]=!vmods[k];b.classList.toggle('on',vmods[k])}));
+
+$('#bSettings').addEventListener('click',()=>openSettings($('#bSettings')));
+$('#bMenu').addEventListener('click',()=>openDrawer());
+$('#zoomlbl').addEventListener('click',()=>{const v=view();const cx=v.x+W/v.s/2,cy=v.y+H/v.s/2;v.s=1;v.x=cx-W/2;v.y=cy-H/2;invalidateAll();updateZoomLbl();scheduleSave(true)});
+function updateZoomLbl(){$('#zoomlbl').textContent=Math.round(view().s*100)+'%'}
+
+/* ---------------------------------------------------------------- popovers */
+let pop=null;
+function closeAll(){if(pop){pop.remove();pop=null}document.querySelectorAll('.modal-bg').forEach(m=>m.remove());$('#drawer').classList.remove('open')}
+function openPop(anchor,html,onMount){if(pop)pop.remove();pop=document.createElement('div');pop.className='pop';pop.innerHTML=html;document.body.appendChild(pop);
+  const r=anchor.getBoundingClientRect(),pw=pop.offsetWidth,ph=pop.offsetHeight;let x=clamp(r.left+r.width/2-pw/2,8,window.innerWidth-pw-8);let y=st.barPos==='bottom'?r.top-ph-8:r.bottom+8;y=clamp(y,8,window.innerHeight-ph-8);
+  pop.style.left=x+'px';pop.style.top=y+'px';onMount&&onMount(pop);
+  setTimeout(()=>document.addEventListener('pointerdown',outside,true),0);function outside(ev){if(pop&&!pop.contains(ev.target)&&!anchor.contains(ev.target)){pop.remove();pop=null;document.removeEventListener('pointerdown',outside,true)}}}
+function seg(id,opts,val){return`<div class="seg" id="${id}">${opts.map(([v,l])=>`<button data-v="${v}" class="${v===val?'on':''}">${l}</button>`).join('')}</div>`}
+function bindSeg(root,id,fn){root.querySelector('#'+id).addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;root.querySelectorAll('#'+id+' button').forEach(x=>x.classList.toggle('on',x===b));fn(b.dataset.v)})}
+function openToolPop(anchor){
+  const t=['pen','dash','hl','eraser','laser','lasso'].includes(st.tool)?st.tool:'pen';let h=`<h3>${TOOLNAMES[t]}</h3>`;
+  if(['pen','dash','hl'].includes(t)){const[mn,mx,stp]=t==='hl'?[6,60,1]:[0.5,16,0.25];h+=`<div class="row"><label>굵기</label><input type="range" id="pw" min="${mn}" max="${mx}" step="${stp}" value="${st[t]}"><b id="pwv" style="font-variant-numeric:tabular-nums">${st[t]}</b></div>`;
+    if(t!=='hl')h+=`<div class="row"><label>도형 인식</label>${seg('hold',[['1','끝에서 멈추면'],['0','끄기']],st.hold?'1':'0')}</div><div class="hint">선을 그은 뒤 펜을 떼지 않고 잠깐 멈추면 직선·사각형·원·포물선으로 바뀌어요.</div>`;
+    else h+=`<div class="hint">닫힌 모양을 그리면 안쪽이 채워져요. 채운 형광펜은 '객체' 지우개로 지워요.</div>`}
+  if(t==='eraser')h+=`<div class="row"><label>방식</label>${seg('em',[['object','객체'],['pixel','부분(픽셀)']],st.eraserMode)}</div><div class="row"><label>크기</label><input type="range" id="ew" min="4" max="80" value="${st.er}"></div>`;
+  if(t==='laser')h+=`<div class="row"><label>유지 시간</label><input type="range" id="ld" min="0.3" max="5" step="0.1" value="${st.laserDur}"><b id="ldv">${st.laserDur}s</b></div>`;
+  if(t==='lasso')h+=`<div class="row"><label>모양</label>${seg('lm',[['free','자유형'],['box','사각형']],st.lassoMode)}</div>`;
+  openPop(anchor,h,p=>{
+    const pw=p.querySelector('#pw');if(pw)pw.oninput=()=>{st[t]=+pw.value;p.querySelector('#pwv').textContent=pw.value;saveSettings();updateWdot()};
+    if(p.querySelector('#hold'))bindSeg(p,'hold',v=>{st.hold=v==='1';saveSettings()});
+    if(p.querySelector('#em'))bindSeg(p,'em',v=>{st.eraserMode=v;saveSettings()});
+    const ew=p.querySelector('#ew');if(ew)ew.oninput=()=>{st.er=+ew.value;saveSettings()};
+    const ld=p.querySelector('#ld');if(ld)ld.oninput=()=>{st.laserDur=+ld.value;p.querySelector('#ldv').textContent=ld.value+'s';saveSettings()};
+    if(p.querySelector('#lm'))bindSeg(p,'lm',v=>{st.lassoMode=v;saveSettings()})})}
+const PRESETS=['#000000','#434343','#7f7f7f','#bfbfbf','#ffffff','#0f172a','#1e3a8a','#006fff','#00a3c4','#14b8a6','#60ba46','#9acd32','#ffff00','#fa9d00','#ff6f3c','#ed3624','#d6336c','#ff8fc8','#a400c7','#6d28d9','#8b5a2b','#c49a6c','#556b2f','#2f4f4f'];
+function openColorPop(anchor,i){
+  const c=st.colors[i];const[r,g,b]=hexRgb(c);
+  openPop(anchor,`<h3>색상 ${i+1} 바꾸기</h3><div class="row"><input type="color" id="cc" value="${c}" style="width:56px;height:40px;border:0;background:none;padding:0">
+    <label style="min-width:0">R</label><input type="number" id="cr" min="0" max="255" value="${r}"><label style="min-width:0">G</label><input type="number" id="cg" min="0" max="255" value="${g}"><label style="min-width:0">B</label><input type="number" id="cb" min="0" max="255" value="${b}"></div>
+    <div class="colors-grid">${PRESETS.map(p=>`<button data-c="${p}" style="background:${p}" aria-label="${p}"></button>`).join('')}</div>
+    <div class="row" style="margin-top:12px"><button class="btn" id="eye">스포이드</button><button class="btn" id="rst">기본색으로</button></div><div class="hint">바꾼 색은 계속 유지돼요.</div>`,p=>{
+    const apply=hx=>{st.colors[i]=hx;saveSettings();renderSwatches();updateWdot();p.querySelector('#cc').value=hx;const[a,b2,c2]=hexRgb(hx);p.querySelector('#cr').value=a;p.querySelector('#cg').value=b2;p.querySelector('#cb').value=c2};
+    p.querySelector('#cc').oninput=e=>apply(e.target.value);
+    ['cr','cg','cb'].forEach(id=>p.querySelector('#'+id).oninput=()=>apply(rgbHex(+p.querySelector('#cr').value,+p.querySelector('#cg').value,+p.querySelector('#cb').value)));
+    p.querySelector('.colors-grid').onclick=e=>{const b=e.target.closest('button');if(b)apply(b.dataset.c)};
+    p.querySelector('#rst').onclick=()=>apply(DEF_COLORS[i]);
+    p.querySelector('#eye').onclick=()=>{eyeTarget=i;prevTool=st.tool;st.tool='eyedrop';closeAll();toast('화면에서 색을 고르세요')}})}
+let eyeTarget=0,prevTool='pen';
+function pickColor(sp){const x=Math.round(sp[0]*DPR),y=Math.round(sp[1]*DPR);let hx=null;
+  try{const d=bctx.getImageData(x,y,1,1).data;if(d[3]>20)hx=rgbHex(d[0],d[1],d[2]);else{const g=gctx.getImageData(x,y,1,1).data;hx=rgbHex(g[0],g[1],g[2])}}catch(e){toast('이 위치의 색을 읽을 수 없어요')}
+  if(hx){st.colors[eyeTarget]=hx;st.ci=eyeTarget;saveSettings();renderSwatches();updateWdot();toast('색을 가져왔어요')}setTool(prevTool==='eyedrop'?'pen':prevTool,true)}
+function openSettings(anchor){
+  openPop(anchor,`<h3>설정</h3>
+    <div class="row"><label>배경</label>${seg('bd',Object.entries(BOARDS).map(([k,v])=>[k,v.label]),st.board)}</div>
+    <div class="row"><label>손가락</label>${seg('fg',[['0','화면 이동'],['1','그리기']],st.finger?'1':'0')}</div>
+    <div class="hint" style="margin:-2px 0 6px">Apple Pencil을 한 번 쓰면 손가락은 자동으로 화면 이동·확대가 돼요(손바닥 인식).</div>
+    <div class="row"><label>도구 막대</label>${seg('bp',[['top','위'],['bottom','아래']],st.barPos)}</div>
+    <div class="row"><label>모눈 간격</label><input type="range" id="gs" min="20" max="80" step="5" value="${st.gridSize}"></div>
+    <div class="row"><button class="btn" id="hlp">사용법·단축키</button></div>`,p=>{
+    bindSeg(p,'bd',v=>{st.board=v;saveSettings();textCache.clear();bbC=new WeakMap();invalidateAll()});
+    bindSeg(p,'fg',v=>{st.finger=v==='1';penSeen=false;saveSettings()});
+    bindSeg(p,'bp',v=>{st.barPos=v;saveSettings();$('#app').classList.toggle('bottom',v==='bottom');setTimeout(resize,0)});
+    p.querySelector('#gs').oninput=e=>{st.gridSize=+e.target.value;saveSettings();needBg=true};
+    p.querySelector('#hlp').onclick=()=>{closeAll();openHelp()}})}
+
+/* ---------------------------------------------------------------- modals */
+function modal(html){const bg=document.createElement('div');bg.className='modal-bg';bg.innerHTML=`<div class="modal" role="dialog">${html}</div>`;document.body.appendChild(bg);
+  bg.addEventListener('pointerdown',e=>{if(e.target===bg)bg.remove()});return bg}
+function openTextEditor(obj,pos,latex){
+  const isL=obj?obj.latex:!!latex;const fs=obj?Math.round(obj.fs):28;
+  const m=modal(`<h2>${obj?'텍스트 편집':(isL?'LaTeX 수식 입력':'텍스트 입력')}</h2>
+    <div class="row">${seg('tm',[['0','텍스트'],['1','LaTeX']],isL?'1':'0')}<label style="min-width:0;margin-left:8px">크기</label><input type="range" id="tfs" min="12" max="120" value="${fs}" style="width:140px"><b id="tfsv">${fs}</b>
+      <label style="min-width:0"><input type="checkbox" id="tb" ${obj&&obj.bold?'checked':''}> 굵게</label></div>
+    <textarea id="tx" rows="5" placeholder="">${obj?esc(obj.s):''}</textarea>
+    <div class="hint" id="thint"></div><div class="preview" id="tprev"></div>
+    <div class="foot">${obj?'<button class="btn dan" id="tdel">삭제</button>':''}<span style="flex:1"></span><button class="btn" id="tcan">취소</button><button class="btn pri" id="tok">확인</button></div>`);
+  let mode=isL?'1':'0';const tx=m.querySelector('#tx'),prev=m.querySelector('#tprev'),hint=m.querySelector('#thint');
+  const upd=()=>{hint.innerHTML=mode==='1'?'수식은 <b>$</b> 기호로 감싸세요. 예: 근의 공식 $x=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}$':'일반 텍스트예요. 수식은 LaTeX 모드에서 입력하세요.';tx.placeholder=mode==='1'?'예: 이차함수 $y=a(x-p)^2+q$ 의 꼭짓점':'내용을 입력하세요';
+    prev.hidden=mode!=='1';if(mode==='1'){prev.innerHTML='';if(window.MathJax&&MathJax.tex2svg){tx.value.split('\n').forEach(l=>{const d=document.createElement('div');d.style.margin='4px 0';d.appendChild(latexToSvgEl(latexLine(l,m.querySelector('#tb').checked)));prev.appendChild(d)})}else prev.textContent='수식 엔진을 불러오는 중…'}};
+  bindSeg(m,'tm',v=>{mode=v;upd()});tx.oninput=upd;m.querySelector('#tb').onchange=upd;
+  m.querySelector('#tfs').oninput=e=>m.querySelector('#tfsv').textContent=e.target.value;upd();try{tx.focus()}catch(_){}setTimeout(()=>tx.focus(),60);
+  m.querySelector('#tcan').onclick=()=>m.remove();
+  if(obj)m.querySelector('#tdel').onclick=()=>{commit(doc.objs.filter(o=>o.id!==obj.id));sel=[];hideSelbar();m.remove()};
+  const ok=()=>{const s=tx.value.replace(/\s+$/,'');m.remove();if(!s){if(obj){commit(doc.objs.filter(o=>o.id!==obj.id));sel=[];hideSelbar()}return}
+    const props={s,latex:mode==='1',fs:+m.querySelector('#tfs').value,bold:m.querySelector('#tb').checked};
+    if(obj){const n={...obj,...props};commit(doc.objs.map(o=>o.id===obj.id?n:o),true);showSelbar()}
+    else{const o={id:nid(),t:'text',x:pos[0],y:pos[1]-props.fs*0.7,w:Math.max(200,W*0.6/view().s),c:st.colors[st.ci],...props};commit(doc.objs.concat(o))}};
+  m.querySelector('#tok').onclick=ok;tx.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();ok()}if(e.key==='Escape')m.remove()})}
+const FN_COLORS=[1,2,5,6,3];
+function openGraph(pos,obj){
+  const o=obj||{xr:[-5,5],yr:[-5,5],u:st.gridSize,fns:[{e:'y=x^2-2x',c:st.colors[1]}]};
+  const m=modal(`<h2>함수 그래프</h2>
+    <div class="hint">한 줄에 하나씩 입력하세요.<br>· y=f(x): <code>y=x^2-2x</code>, <code>sin(x)</code> &nbsp;· 극좌표: <code>r=2sin(4theta)</code><br>· 매개변수: <code>5cos(t), 3sin(t)</code> &nbsp;· 음함수: <code>x^2+y^2=9</code></div>
+    <textarea id="gf" rows="4" style="margin-top:8px">${esc(o.fns.map(f=>f.e).join('\n'))}</textarea>
+    <div class="row"><label>x 범위</label><input type="number" id="gx0" value="${o.xr[0]}" step="any"> ~ <input type="number" id="gx1" value="${o.xr[1]}" step="any"></div>
+    <div class="row"><label>y 범위</label><input type="number" id="gy0" value="${o.yr[0]}" step="any"> ~ <input type="number" id="gy1" value="${o.yr[1]}" step="any"></div>
+    <div class="row"><label>t·θ 범위</label><input type="number" id="gt0" value="${(o.fns[0]&&o.fns[0].tr?o.fns[0].tr[0]:0)}" step="any"> ~ <input type="number" id="gt1" value="${(o.fns[0]&&o.fns[0].tr?+o.fns[0].tr[1].toFixed(4):6.2832)}" step="any"></div>
+    <div class="row"><label>1칸 크기</label><input type="range" id="gu" min="10" max="120" value="${o.u}"><b id="guv">${Math.round(o.u)}</b></div>
+    <div class="hint" id="gerr" style="color:var(--danger)"></div>
+    <div class="foot">${obj?'<button class="btn dan" id="gdel">삭제</button>':''}<span style="flex:1"></span><button class="btn" id="gcan">취소</button><button class="btn pri" id="gok">${obj?'적용':'그리기'}</button></div>`);
+  m.querySelector('#gu').oninput=e=>m.querySelector('#guv').textContent=e.target.value;
+  m.querySelector('#gcan').onclick=()=>m.remove();
+  if(obj)m.querySelector('#gdel').onclick=()=>{commit(doc.objs.filter(x=>x.id!==obj.id));sel=[];hideSelbar();m.remove()};
+  const ok=()=>{const lines=m.querySelector('#gf').value.split('\n').map(s=>s.trim()).filter(Boolean);const err=m.querySelector('#gerr');
+    for(const l of lines){try{parseFn(l)}catch(e){err.textContent=`"${l}" — ${e.message}`;return}}
+    const xr=[+m.querySelector('#gx0').value,+m.querySelector('#gx1').value],yr=[+m.querySelector('#gy0').value,+m.querySelector('#gy1').value],tr=[+m.querySelector('#gt0').value,+m.querySelector('#gt1').value];
+    if(!(xr[0]<xr[1])){err.textContent='x 최솟값이 최댓값보다 작아야 해요';return}if(!(yr[0]<yr[1])){err.textContent='y 최솟값이 최댓값보다 작아야 해요';return}if(!(tr[0]<tr[1])){err.textContent='t·θ 최솟값이 최댓값보다 작아야 해요';return}
+    const u=+m.querySelector('#gu').value;const fns=lines.map((e,i)=>({e,tr,c:(obj&&obj.fns[i]&&obj.fns[i].e===e)?obj.fns[i].c:st.colors[FN_COLORS[i%FN_COLORS.length]]}));m.remove();
+    if(obj){const n={...obj,xr,yr,u,fns};commit(doc.objs.map(x=>x.id===obj.id?n:x),true);showSelbar()}
+    else{const g={id:nid(),t:'graph',x:pos[0]-xr[0]*u,y:pos[1]+yr[1]*u,u,xr,yr,fns,c:st.colors[0]};commit(doc.objs.concat(g));setTool('lasso',true);setSel([g.id])}};
+  m.querySelector('#gok').onclick=ok;m.querySelector('#gf').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();ok()}})}
+function openNdiv(o,edge){
+  const m=modal(`<h2>${edge?'변':'선분'} n등분점 찍기</h2><div class="row">${[2,3,4,5,6].map(n=>`<button class="btn" data-n="${n}">${n}등분</button>`).join('')}</div>
+    <div class="row"><label>직접 입력</label><input type="number" id="nn" min="2" max="50" value="3"><button class="btn pri" id="nok">찍기</button></div>
+    <div class="hint">${o.k==='curve'?'곡선은 매개변수 기준으로 나눠요 (포물선이면 x축 방향으로 같은 간격).':''}</div>`);
+  const go=n=>{n=Math.round(n);if(!(n>=2&&n<=200))return;m.remove();const pts=[];
+    if(edge){for(let i=1;i<n;i++){const t=i/n;pts.push([edge[0][0]+(edge[1][0]-edge[0][0])*t,edge[0][1]+(edge[1][1]-edge[0][1])*t])}}
+    else if(o.k==='line'){for(let i=1;i<n;i++){const t=i/n;pts.push([o.cp[0][0]+(o.cp[1][0]-o.cp[0][0])*t,o.cp[0][1]+(o.cp[1][1]-o.cp[0][1])*t])}}
+    else if(o.k==='curve'){for(let i=1;i<n;i++)pts.push(qpt(o.cp,i/n))}
+    const dots=pts.map(p=>({id:nid(),t:'dot',x:p[0],y:p[1],r:Math.max(3,o.w*1.5),c:o.c}));commit(doc.objs.concat(dots),true);showSelbar()};
+  m.querySelectorAll('[data-n]').forEach(b=>b.onclick=()=>go(+b.dataset.n));m.querySelector('#nok').onclick=()=>go(+m.querySelector('#nn').value)}
+function openHelp(){modal(`<h2>사용법</h2>
+  <div class="keys">
+   <b>Apple Pencil</b><span>필기·그리기 (필압 지원)</span>
+   <b>손가락 1개</b><span>화면 이동</span><b>손가락 2개</b><span>확대·축소·이동</span>
+   <b>두 손가락 탭</b><span>실행취소</span><b>세 손가락 탭</b><span>다시실행</span>
+   <b>도구 다시 누르기</b><span>굵기·옵션 (지우개 방식, 올가미 모양 등)</span>
+   <b>색 다시 누르기</b><span>색 바꾸기·스포이드</span>
+   <b>그리고 잠깐 멈춤</b><span>도형 인식 (직선·사각형·원·다각형·포물선)</span>
+   <b>도형 조절점</b><span>끌어서 모양 수정, 모눈 켜면 격자점에 붙음</span>
+   <b>올가미 → 도형 길게 누르기</b><span>그 변을 n등분</span>
+   <b>올가미 → 텍스트 두 번 탭</b><span>편집</span>
+  </div>
+  <h2 style="margin-top:16px">가상 키 (Shift · Ctrl · Alt)</h2>
+  <div class="keys">
+   <kbd>⇧</kbd><span>곧은 선 그리기</span><kbd>Ctrl</kbd><span>실선펜으로 점선 그리기 · 조절점 격자 붙임 해제</span>
+   <kbd>Alt</kbd><span>그리면 도형 인식 강제 · 사각형 조절점을 자유롭게 · 포물선을 좌우 대칭으로</span>
+  </div>
+  <h2 style="margin-top:16px">키보드 단축키</h2>
+  <div class="keys">
+   <kbd>S D H E P L T</kbd><span>실선펜 · 점선펜 · 형광펜 · 지우개 · 레이저 · 올가미 · 텍스트</span>
+   <kbd>1 ~ 8</kbd><span>색상 선택</span><kbd>W</kbd><span>모눈종이</span>
+   <kbd>⌘Z / ⇧⌘Z</kbd><span>실행취소 / 다시실행</span><kbd>⌘X ⌘C ⌘V</kbd><span>잘라내기 · 복사 · 붙여넣기</span>
+   <kbd>⌘S</kbd><span>파일로 저장</span><kbd>⌘[ / ⌘]</kbd><span>이전 / 다음 탭</span><kbd>⌘1~9</kbd><span>탭 이동</span>
+   <kbd>Space</kbd><span>누른 채 끌어 화면 이동</span><kbd>⌘ + 휠</kbd><span>확대·축소</span>
+  </div>
+  <div class="foot"><button class="btn pri" onclick="this.closest('.modal-bg').remove()">닫기</button></div>`)}
+
+/* ================================================================ storage (IndexedDB) */
+const IDB={db:null,ok:true,
+  open(){return new Promise(res=>{try{const r=indexedDB.open('sajd-math-note',1);r.onupgradeneeded=()=>{r.result.createObjectStore('notes',{keyPath:'id'})};r.onsuccess=()=>{this.db=r.result;res(true)};r.onerror=()=>{this.ok=false;res(false)}}catch(e){this.ok=false;res(false)}})},
+  tx(mode){return this.db.transaction('notes',mode).objectStore('notes')},
+  put(n){return new Promise(res=>{if(!this.db)return res(false);try{const q=this.tx('readwrite').put(n);q.onsuccess=()=>res(true);q.onerror=()=>res(false)}catch(e){res(false)}})},
+  get(id){return new Promise(res=>{if(!this.db)return res(null);try{const q=this.tx('readonly').get(id);q.onsuccess=()=>res(q.result||null);q.onerror=()=>res(null)}catch(e){res(null)}})},
+  all(){return new Promise(res=>{if(!this.db)return res([]);try{const q=this.tx('readonly').getAll();q.onsuccess=()=>res(q.result||[]);q.onerror=()=>res([])}catch(e){res([])}})},
+  del(id){return new Promise(res=>{if(!this.db)return res(false);try{const q=this.tx('readwrite').delete(id);q.onsuccess=()=>res(true);q.onerror=()=>res(false)}catch(e){res(false)}})}};
+const memNotes=new Map(); // fallback when IndexedDB unavailable
+let saveT=null;
+function scheduleSave(viewOnly){clearTimeout(saveT);saveT=setTimeout(saveNow,viewOnly?1200:600)}
+async function saveNow(){if(!doc)return;if(doc.objs.length||doc.updated)doc.updated=Date.now();const n={id:doc.id,name:doc.name,objs:doc.objs,assets:doc.assets,view:doc.view,created:doc.created,updated:doc.updated};
+  memNotes.set(n.id,n);if(IDB.db)await IDB.put(n);if(!openTabs.includes(doc.id)){openTabs.push(doc.id);saveTabs()}LS('current',doc.id)}
+async function allNotes(){const a=IDB.db?await IDB.all():[...memNotes.values()];return a.sort((x,y)=>(y.updated||0)-(x.updated||0))}
+async function getNote(id){return memNotes.get(id)||(IDB.db?await IDB.get(id):null)}
+
+/* ---------------------------------------------------------------- tabs */
+let openTabs=LS('tabs')||[];const saveTabs=()=>LS('tabs',openTabs);const tabNames=new Map();
+async function renderTabs(){if(!doc)return;tabNames.set(doc.id,doc.name);
+  for(const id of openTabs)if(!tabNames.has(id)){const n=await getNote(id);if(n)tabNames.set(id,n.name);else{openTabs=openTabs.filter(x=>x!==id);saveTabs()}}
+  if(!openTabs.includes(doc.id)){openTabs.push(doc.id);saveTabs()}
+  $('#tabs').innerHTML=openTabs.map(id=>`<div class="tab${id===doc.id?' on':''}" data-id="${id}" role="tab"><span>${esc(tabNames.get(id)||'노트')}</span><i class="x" data-close="${id}" aria-label="탭 닫기">×</i></div>`).join('')+`<button class="tab add" id="tabAdd" aria-label="새 노트">+</button>`}
+$('#tabs').addEventListener('click',async e=>{const c=e.target.closest('[data-close]');if(c){e.stopPropagation();closeTab(c.dataset.close);return}
+  if(e.target.closest('#tabAdd')){await saveNow();setDoc(newDoc(nextName()));await saveNow();renderTabs();return}
+  const t=e.target.closest('.tab');if(t&&t.dataset.id&&t.dataset.id!==doc.id)switchTo(t.dataset.id)});
+$('#tabs').addEventListener('dblclick',e=>{const t=e.target.closest('.tab');if(t&&t.dataset.id===doc.id)renameCurrent()});
+async function switchTo(id){if(doc&&id===doc.id)return;await saveNow();const n=await getNote(id);if(!n){toast('노트를 찾을 수 없어요');return}setDoc(structuredCloneSafe(n));LS('current',id);renderTabs()}
+function structuredCloneSafe(n){return{...n,objs:n.objs.slice(),assets:{...n.assets},view:{...n.view}}}
+async function closeTab(id){const i=openTabs.indexOf(id);if(i<0)return;if(openTabs.length===1){toast('마지막 탭은 닫을 수 없어요');return}
+  if(doc.id===id)await saveNow();openTabs.splice(i,1);saveTabs();if(doc.id===id)await switchTo(openTabs[Math.max(0,i-1)]);else renderTabs()}
+function cycleTab(d){const i=openTabs.indexOf(doc.id);const n=openTabs[(i+d+openTabs.length)%openTabs.length];if(n)switchTo(n)}
+function nextName(){const d=new Date();return`노트 ${d.getMonth()+1}.${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
+function renameCurrent(){const m=modal(`<h2>노트 이름</h2><input type="text" id="rn" value="${esc(doc.name)}" style="width:100%;box-sizing:border-box"><div class="foot"><button class="btn" id="rc">취소</button><button class="btn pri" id="ro">저장</button></div>`);
+  const inp=m.querySelector('#rn');setTimeout(()=>{inp.focus();inp.select()},50);m.querySelector('#rc').onclick=()=>m.remove();
+  const ok=()=>{const v=inp.value.trim();if(v){doc.name=v;tabNames.set(doc.id,v);saveNow();renderTabs();renderNotes()}m.remove()};m.querySelector('#ro').onclick=ok;inp.onkeydown=e=>{if(e.key==='Enter')ok()}}
+
+/* ---------------------------------------------------------------- drawer */
+async function openDrawer(){closeAll();await saveNow();$('#drawer').classList.add('open');renderNotes();setTimeout(()=>document.addEventListener('pointerdown',outD,true),0)}
+function outD(e){if(!$('#drawer').contains(e.target)&&!e.target.closest('.modal-bg')){$('#drawer').classList.remove('open');document.removeEventListener('pointerdown',outD,true)}}
+async function renderNotes(){const list=await allNotes();const fmt=t=>{const d=new Date(t||Date.now());return`${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`};
+  $('#storeHint').textContent=IDB.db?'노트는 이 기기에 자동 저장돼요. 다른 기기로 옮기려면 파일로 저장하세요.':'이 화면에서는 자동 저장이 꺼져 있어요. 파일로 저장해 두세요.';
+  $('#notes').innerHTML=list.map(n=>`<div class="note${n.id===doc.id?' on':''}" data-id="${n.id}"><div class="nm"><b>${esc(n.name)}</b><small>${fmt(n.updated)} · ${n.objs.length}개 개체</small></div>
+    ${n.id===doc.id?'<button data-ren="1">이름</button>':''}<button class="dan" data-del="${n.id}">삭제</button></div>`).join('')||'<div class="hint">아직 노트가 없어요.</div>'}
+$('#notes').addEventListener('click',async e=>{const del=e.target.closest('[data-del]');
+  if(del){if(del.dataset.confirm!=='1'){del.dataset.confirm='1';del.textContent='정말 삭제';setTimeout(()=>{if(del.isConnected){del.dataset.confirm='';del.textContent='삭제'}},2500);return}
+    const id=del.dataset.del;memNotes.delete(id);await IDB.del(id);openTabs=openTabs.filter(x=>x!==id);saveTabs();tabNames.delete(id);
+    if(id===doc.id){const rest=await allNotes();if(rest.length)await switchTo(rest[0].id);else{setDoc(newDoc(nextName()));await saveNow()}}renderTabs();renderNotes();return}
+  if(e.target.closest('[data-ren]')){renameCurrent();return}
+  const n=e.target.closest('.note');if(n){await switchTo(n.dataset.id);$('#drawer').classList.remove('open')}});
+$('#dNew').onclick=async()=>{await saveNow();setDoc(newDoc(nextName()));await saveNow();renderTabs();$('#drawer').classList.remove('open')};
+$('#dOpen').onclick=()=>$('#fOpen').click();$('#dSave').onclick=()=>saveFile();$('#dImg').onclick=()=>{$('#drawer').classList.remove('open');$('#fImport').click()};
+$('#dPng').onclick=()=>exportPNG();$('#dPdf').onclick=()=>exportPDF();$('#dHelp').onclick=()=>{$('#drawer').classList.remove('open');openHelp()};
+$('#dClear').onclick=e=>{const b=e.currentTarget;if(b.dataset.c!=='1'){b.dataset.c='1';b.textContent='한 번 더 누르면 지워요';setTimeout(()=>{b.dataset.c='';b.textContent='전체 지우기'},2500);return}
+  b.dataset.c='';b.textContent='전체 지우기';commit([]);sel=[];hideSelbar();$('#drawer').classList.remove('open');toast('전체 지웠어요 (실행취소 가능)')};
+
+/* ================================================================ files: save/open/export/import */
+let dlCap;async function getDownloads(){if(dlCap!==undefined)return dlCap;try{dlCap=window.claude&&window.claude.use?await Promise.race([window.claude.use('downloads'),new Promise(r=>setTimeout(()=>r(null),4000))]):null}catch(e){dlCap=null}return dlCap}
+async function deliver(blob,filename){
+  const d=await getDownloads();
+  if(d){try{await d.save({filename,data:blob});toast('저장했어요');return}catch(e){if(e&&e.code==='declined')return}}
+  const file=new File([blob],filename,{type:blob.type});
+  if(navigator.canShare&&/iPad|iPhone|Macintosh/.test(navigator.userAgent)&&'ontouchend'in document&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:filename});return}catch(e){if(e.name==='AbortError')return}}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000)}
+const safeName=s=>(s||'노트').replace(/[\\/:*?"<>|]/g,'_').slice(0,80);
+async function saveFile(){await saveNow();const used=new Set();doc.objs.forEach(o=>{if(o.aid)used.add(o.aid)});const assets={};used.forEach(k=>{if(doc.assets[k])assets[k]=doc.assets[k]});
+  const data={format:'sajd-math-note-web',version:1,name:doc.name,objs:doc.objs,assets,view:doc.view,saved:new Date().toISOString()};
+  deliver(new Blob([JSON.stringify(data)],{type:'application/json'}),safeName(doc.name)+'.json')}
+$('#fOpen').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{const d=JSON.parse(await f.text());if(d.format!=='sajd-math-note-web')throw new Error('형식');await saveNow();
+    const n={id:nid(),name:d.name||f.name.replace(/\.json$/,''),objs:d.objs||[],assets:d.assets||{},view:d.view||{x:0,y:0,s:1},created:Date.now(),updated:Date.now()};
+    setDoc(n);await saveNow();renderTabs();$('#drawer').classList.remove('open');toast('노트를 열었어요')}
+  catch(err){toast(/\.sajd$/i.test(f.name)?'.sajd(PC판) 파일은 아직 열 수 없어요':'이 앱에서 저장한 .json 노트 파일만 열 수 있어요',2600)}});
+function renderToCanvas(objs,b,scale,bgColor){const w=Math.max(1,Math.ceil((b.x2-b.x1)*scale)),h=Math.max(1,Math.ceil((b.y2-b.y1)*scale));const cv=document.createElement('canvas');cv.width=w;cv.height=h;const c=cv.getContext('2d');
+  c.fillStyle=bgColor;c.fillRect(0,0,w,h);c.setTransform(scale,0,0,scale,-b.x1*scale,-b.y1*scale);objs.forEach(o=>drawObj(c,o));return cv}
+function exportBounds(){const objs=sel.length?selObjs():doc.objs;if(!objs.length){toast('내보낼 내용이 없어요');return null}const b=unionBB(objs);const pad=24;return{objs,b:{x1:b.x1-pad,y1:b.y1-pad,x2:b.x2+pad,y2:b.y2+pad}}}
+async function exportPNG(){const e=exportBounds();if(!e)return;const maxDim=Math.max(e.b.x2-e.b.x1,e.b.y2-e.b.y1);const scale=Math.min(2,7000/maxDim);
+  const cv=renderToCanvas(e.objs,e.b,scale,BOARDS[st.board].bg);try{cv.toBlob(b=>{if(b)deliver(b,safeName(doc.name)+'.png');else toast('PNG를 만들 수 없어요')},'image/png')}catch(err){toast('PNG를 만들 수 없어요')}}
+async function exportPDF(){const e=exportBounds();if(!e)return;toast('PDF 만드는 중…',3000);
+  try{await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');const{jsPDF}=window.jspdf;
+    // page = imported PDF pages if present, otherwise one page per A4-width slice of the content
+    const pageW=e.b.x2-e.b.x1;const sliceH=pageW*1.4142;const pages=[];for(let y=e.b.y1;y<e.b.y2;y+=sliceH)pages.push({x1:e.b.x1,x2:e.b.x2,y1:y,y2:Math.min(e.b.y2,y+sliceH)});
+    let pdf=null;for(const pb of pages){const scale=Math.min(2,4000/pageW);const cv=renderToCanvas(e.objs.filter(o=>{const b=bbox(o);return!(b.y2<pb.y1||b.y1>pb.y2)}),pb,scale,BOARDS[st.board].bg);
+      const wpt=595.28,hpt=wpt*(pb.y2-pb.y1)/pageW;if(!pdf)pdf=new jsPDF({unit:'pt',format:[wpt,hpt],orientation:hpt>wpt?'p':'l'});else pdf.addPage([wpt,hpt],hpt>wpt?'p':'l');
+      pdf.addImage(cv.toDataURL('image/jpeg',0.92),'JPEG',0,0,wpt,hpt)}
+    deliver(pdf.output('blob'),safeName(doc.name)+'.pdf')}catch(err){toast('PDF를 만들 수 없어요 (인터넷 연결 확인)',2600)}}
+function viewCenter(){const v=view();return[v.x+W/v.s/2,v.y+H/v.s/2]}
+function addAsset(dataUrl){const aid='a'+nid();doc.assets[aid]=dataUrl;return aid}
+function fileToDataURL(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f)})}
+async function downscale(dataUrl,maxDim){return new Promise(res=>{const im=new Image();im.onload=()=>{const k=Math.min(1,maxDim/Math.max(im.width,im.height));if(k>=1&&dataUrl.length<3e6)return res({src:dataUrl,w:im.width,h:im.height});
+  const cv=document.createElement('canvas');cv.width=Math.round(im.width*k);cv.height=Math.round(im.height*k);cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);res({src:cv.toDataURL('image/jpeg',0.88),w:cv.width,h:cv.height})};im.onerror=()=>res(null);im.src=dataUrl})}
+async function insertImageFile(f){const d=await downscale(await fileToDataURL(f),2400);if(!d){toast('이미지를 열 수 없어요');return}const v=view();const maxW=W*0.7/v.s;const k=Math.min(1,maxW/d.w);const[cx,cy]=viewCenter();
+  const o={id:nid(),t:'img',aid:addAsset(d.src),x:cx-d.w*k/2,y:cy-d.h*k/2,w:d.w*k,h:d.h*k};commit(doc.objs.concat(o));setTool('lasso',true);setSel([o.id])}
+$('#fImg').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(f)insertImageFile(f);$('#drawer').classList.remove('open')});
+$('#fImport').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;if(f.type.startsWith('image/'))return insertImageFile(f);importPDF(f)});
+async function importPDF(f){toast('PDF 불러오는 중…',4000);
+  try{await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js');
+    const lib=window.pdfjsLib;lib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const pdf=await lib.getDocument({data:new Uint8Array(await f.arrayBuffer())}).promise;const N=Math.min(pdf.numPages,80);if(pdf.numPages>80)toast('앞 80쪽만 불러와요',2500);
+    const v=view();const pageW=900;let y=v.y+40/v.s;const x=viewCenter()[0]-pageW/2;const imgs=[];
+    for(let i=1;i<=N;i++){const pg=await pdf.getPage(i);const vp1=pg.getViewport({scale:1});const k=pageW/vp1.width;const rs=Math.min(2.2,2400/vp1.width);const vp=pg.getViewport({scale:rs});
+      const cv=document.createElement('canvas');cv.width=Math.round(vp.width);cv.height=Math.round(vp.height);const c=cv.getContext('2d');c.fillStyle='#fff';c.fillRect(0,0,cv.width,cv.height);
+      await pg.render({canvasContext:c,viewport:vp}).promise;const h=vp1.height*k;imgs.push({id:nid(),t:'img',pdf:true,aid:addAsset(cv.toDataURL('image/jpeg',0.86)),x,y,w:pageW,h});y+=h+30;
+      if(i%5===0)toast(`PDF 불러오는 중… ${i}/${N}`,3000)}
+    commit(imgs.concat(doc.objs));toast(`${N}쪽을 불러왔어요`)}catch(err){console.error(err);toast('PDF를 열 수 없어요 (처음 한 번은 인터넷 연결이 필요해요)',3000)}}
+
+/* ================================================================ boot */
+function sampleDoc(){const d=newDoc('시작하기');const C=st.colors;
+  d.objs=[{id:nid(),t:'text',x:0,y:0,w:700,fs:30,c:C[0],s:'SAJD Math Note — 아이패드판',bold:true,latex:false},
+    {id:nid(),t:'text',x:0,y:52,w:720,fs:19,c:C[0],s:'Apple Pencil로 쓰고, 손가락으로 화면을 움직이세요. 두 손가락 탭은 실행취소.\n선을 그은 뒤 펜을 떼지 않고 잠깐 멈추면 도형으로 바뀌어요.',latex:false},
+    {id:nid(),t:'text',x:0,y:140,w:0,fs:26,c:C[1],s:'근의 공식 $x=\\dfrac{-b\\pm\\sqrt{b^2-4ac}}{2a}$',latex:true},
+    {id:nid(),t:'graph',x:120+5*40,y:250+5*40,u:40,xr:[-3,6],yr:[-3,5],fns:[{e:'y=(x-2)^2-1',c:C[2],tr:[0,6.2832]}],c:C[0]},
+    {id:nid(),t:'shape',k:'rect',cp:[[560,260],[760,260],[760,400],[560,400]],w:3,c:C[5]},
+    {id:nid(),t:'shape',k:'line',cp:[[560,460],[800,460]],w:3,c:C[6]},
+    ...[1,2,3].map(i=>({id:nid(),t:'dot',x:560+60*i,y:460,r:4.5,c:C[6]})),
+    {id:nid(),t:'text',x:560,y:476,w:300,fs:16,c:C[6],s:'선분 4등분 (올가미로 선택 → n등분)',latex:false}];
+  d.view={x:-60,y:-60,s:1};return d}
+async function boot(){
+  $('#app').classList.toggle('bottom',st.barPos==='bottom');renderSwatches();setTool(st.tool==='eyedrop'?'pen':st.tool,true);$('#bGrid').classList.toggle('on',st.grid);
+  resize();window.addEventListener('resize',()=>{resize();showSelbar()});
+  if(window.visualViewport)visualViewport.addEventListener('resize',()=>setTimeout(resize,50));
+  await IDB.open();
+  let cur=LS('current');let d=cur?await getNote(cur):null;
+  if(!d){const list=await allNotes();d=list[0]||null}
+  if(!d){d=sampleDoc();if(LS('seenSample'))d=newDoc(nextName());LS('seenSample',1)}
+  setDoc(structuredCloneSafe(d));await saveNow();renderTabs();requestAnimationFrame(frame);
+  if(document.fonts&&document.fonts.load)document.fonts.load('400 20px "Nanum Gothic"').then(()=>{textCache.clear();bbC=new WeakMap();dirtyBase()}).catch(()=>{});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)saveNow()});window.addEventListener('pagehide',()=>saveNow())}
+boot();
+})();
+</script>
+
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}
+</script>
+</body>
+</html>
