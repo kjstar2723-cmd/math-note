@@ -35,7 +35,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--chrome);color:va
 #bar{display:flex;align-items:center;gap:2px;padding:5px 8px;overflow-x:auto;scrollbar-width:none}
 #bar::-webkit-scrollbar{display:none}
 .sep{width:1px;height:26px;background:var(--line);margin:0 3px;flex:none}
-.tb{flex:none;width:38px;height:40px;border:0;border-radius:10px;background:transparent;color:var(--ink);display:grid;place-items:center;cursor:pointer;position:relative;padding:0;font:inherit}
+.tb{flex:none;width:37px;height:40px;border:0;border-radius:10px;background:transparent;color:var(--ink);display:grid;place-items:center;cursor:pointer;position:relative;padding:0;font:inherit}
 .tb svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .tb:active{background:var(--chrome3)}
 .tb.on{background:var(--accent-bg);color:var(--accent)}
@@ -44,7 +44,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--chrome);color:va
 .tb:focus-visible,.btn:focus-visible,.sw:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .sw{flex:none;width:27px;height:27px;border-radius:50%;border:2px solid var(--chrome);box-shadow:0 0 0 1px var(--line);margin:0 2px;cursor:pointer;padding:0}
 .sw.on{box-shadow:0 0 0 2px var(--accent);border-color:var(--chrome)}
-#wdot{width:38px;height:40px}
+#wdot{width:37px;height:40px}
 #wdot i{display:block;border-radius:50%;background:var(--ink)}
 #tabs{display:flex;align-items:stretch;gap:2px;padding:0 8px 0;overflow-x:auto;scrollbar-width:none;height:34px}
 #tabs::-webkit-scrollbar{display:none}
@@ -108,6 +108,11 @@ textarea{width:100%;box-sizing:border-box;resize:vertical;font-family:ui-monospa
 .stgrid button:active{background:var(--chrome3)}
 .stgrid svg{width:40px;height:30px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .sthead{font-size:12px;color:var(--mute);font-weight:700;letter-spacing:.06em;margin:10px 0 6px}
+#app.split{right:calc(100% - var(--sp,50%))}
+#pane2{position:fixed;top:0;left:var(--sp,50%);width:calc(100% - var(--sp,50%));height:100%;border:0;background:var(--chrome);z-index:5}
+#divider{position:fixed;top:0;bottom:0;left:var(--sp,50%);width:14px;margin-left:-7px;z-index:6;cursor:col-resize;touch-action:none;display:flex;align-items:center;justify-content:center}
+#divider::before{content:"";position:absolute;top:0;bottom:0;left:6px;width:2px;background:var(--line)}
+#divider i{position:relative;width:6px;height:44px;border-radius:3px;background:var(--mute)}
 @media (prefers-reduced-motion:reduce){#drawer{transition:none}}
 </style>
 
@@ -120,7 +125,7 @@ textarea{width:100%;box-sizing:border-box;resize:vertical;font-family:ui-monospa
       <button class="tb" data-tool="dash" title="점선펜 (D)" aria-label="점선펜"><svg viewBox="0 0 24 24"><path d="M4 20l2-2M9 15l2-2M14 10l2-2M19 5l1-1"/></svg></button>
       <button class="tb" data-tool="hl" title="형광펜 (H)" aria-label="형광펜"><svg viewBox="0 0 24 24"><path d="M9.5 14.5L5 19h6l1.5-1.5"/><path d="M8 13l8-8.5 4 4L12 17z"/><path d="M4 21h16" opacity=".5"/></svg></button>
       <button class="tb" data-tool="eraser" title="지우개 (E)" aria-label="지우개"><svg viewBox="0 0 24 24"><path d="M9 20h11"/><path d="M5.5 15.5l9-9 5 5-8.5 8.5H9z"/><path d="M10 11l5 5"/></svg></button>
-      <button class="tb" data-tool="laser" title="레이저 포인터 (P)" aria-label="레이저 포인터"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg></button>
+      <button class="tb" data-tool="laser" title="레이저 포인터 (P)" aria-label="레이저 포인터"><svg viewBox="0 0 24 24"><path d="M3.5 20.5l8-8"/><path d="M9.6 10.6l3.8 3.8M10.5 9.7l2.9-2.9 3.8 3.8-2.9 2.9z"/><circle cx="19.3" cy="4.7" r="2.1" fill="#ff4d4d" stroke="#ff4d4d"/><path d="M19.3 9.2v1.3M14.8 4.7h-1.3" stroke="#ff4d4d"/></svg></button>
       <button class="tb" data-tool="lasso" title="올가미 (L)" aria-label="올가미"><svg viewBox="0 0 24 24"><path d="M12 4c4.7 0 8 2.4 8 5.6S16.7 15 12 15s-8-2.2-8-5.4S7.3 4 12 4z" stroke-dasharray="2.6 2.4"/><path d="M7.5 14c-1.4 2-.6 4.6 2 5.5"/></svg></button>
       <div class="sep"></div>
       <button class="tb" data-tool="text" title="텍스트 (T)" aria-label="텍스트"><svg viewBox="0 0 24 24"><path d="M5 7V5h14v2M12 5v14M9 19h6"/></svg></button>
@@ -140,7 +145,8 @@ textarea{width:100%;box-sizing:border-box;resize:vertical;font-family:ui-monospa
       <button class="tb mod" data-mod="alt" title="Alt: 도형 인식 강제 · 자유 사각형 · 포물선 대칭">Alt</button>
       <div class="sep"></div>
       
-      <button class="tb" id="bSettings" title="설정" aria-label="설정"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg></button>
+      <button class="tb" id="bSplit" title="화면 2분할" aria-label="화면 2분할"><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="2"/><path d="M12 4.5v15"/></svg></button>
+      <button class="tb" id="bSettings" title="설정" aria-label="설정"><svg viewBox="0 0 24 24"><path d="M10.3 3h3.4l.5 2.4 1.7.8 2.1-1.3 2.4 2.4-1.3 2.1.8 1.7 2.4.5v3.4l-2.4.5-.8 1.7 1.3 2.1-2.4 2.4-2.1-1.3-1.7.8-.5 2.4h-3.4l-.5-2.4-1.7-.8-2.1 1.3-2.4-2.4 1.3-2.1-.8-1.7L3 13.7v-3.4l2.4-.5.8-1.7-1.3-2.1 2.4-2.4 2.1 1.3 1.7-.8z"/><circle cx="12" cy="12" r="3"/></svg></button>
     </div>
     <div id="tabs"></div>
   </div>
@@ -175,7 +181,7 @@ textarea{width:100%;box-sizing:border-box;resize:vertical;font-family:ui-monospa
 <div id="toast"></div>
 <input type="file" id="fImport" accept="application/pdf,image/*" hidden>
 <input type="file" id="fImg" accept="image/*" hidden>
-<input type="file" id="fOpen" accept=".json,application/json,.sajdweb" hidden>
+<input type="file" id="fOpen" hidden>
 
 <script>
 window.MathJax={tex:{inlineMath:[],displayMath:[]},svg:{fontCache:'none'},startup:{typeset:false},options:{enableMenu:false}};
@@ -184,6 +190,9 @@ window.MathJax={tex:{inlineMath:[],displayMath:[]},svg:{fontCache:'none'},startu
 <script>
 (()=>{
 'use strict';
+const PRISTINE='<!doctype html>'+document.documentElement.outerHTML;
+const IS_PANE2=window.name==='sajd-pane2';
+const KEY=k=>IS_PANE2?'p2.'+k:k;
 /* ================================================================ utils */
 const $=s=>document.querySelector(s);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -909,12 +918,12 @@ const memNotes=new Map(); // fallback when IndexedDB unavailable
 let saveT=null;
 function scheduleSave(viewOnly){clearTimeout(saveT);saveT=setTimeout(saveNow,viewOnly?1200:600)}
 async function saveNow(){if(!doc)return;if(doc.objs.length||doc.updated)doc.updated=Date.now();const n={id:doc.id,name:doc.name,objs:doc.objs,assets:doc.assets,view:doc.view,created:doc.created,updated:doc.updated};
-  memNotes.set(n.id,n);if(IDB.db)await IDB.put(n);if(!openTabs.includes(doc.id)){openTabs.push(doc.id);saveTabs()}LS('current',doc.id)}
+  memNotes.set(n.id,n);if(IDB.db)await IDB.put(n);if(!openTabs.includes(doc.id)){openTabs.push(doc.id);saveTabs()}LS(KEY('current'),doc.id)}
 async function allNotes(){const a=IDB.db?await IDB.all():[...memNotes.values()];return a.sort((x,y)=>(y.updated||0)-(x.updated||0))}
 async function getNote(id){return memNotes.get(id)||(IDB.db?await IDB.get(id):null)}
 
 /* ---------------------------------------------------------------- tabs */
-let openTabs=LS('tabs')||[];const saveTabs=()=>LS('tabs',openTabs);const tabNames=new Map();
+let openTabs=LS(KEY('tabs'))||[];const saveTabs=()=>LS(KEY('tabs'),openTabs);const tabNames=new Map();
 async function renderTabs(){if(!doc)return;tabNames.set(doc.id,doc.name);
   for(const id of openTabs)if(!tabNames.has(id)){const n=await getNote(id);if(n)tabNames.set(id,n.name);else{openTabs=openTabs.filter(x=>x!==id);saveTabs()}}
   if(!openTabs.includes(doc.id)){openTabs.push(doc.id);saveTabs()}
@@ -923,7 +932,7 @@ $('#tabs').addEventListener('click',async e=>{const c=e.target.closest('[data-cl
   if(e.target.closest('#tabAdd')){await saveNow();setDoc(newDoc(nextName()));await saveNow();renderTabs();return}
   const t=e.target.closest('.tab');if(t&&t.dataset.id&&t.dataset.id!==doc.id)switchTo(t.dataset.id)});
 $('#tabs').addEventListener('dblclick',e=>{const t=e.target.closest('.tab');if(t&&t.dataset.id===doc.id)renameCurrent()});
-async function switchTo(id){if(doc&&id===doc.id)return;await saveNow();const n=await getNote(id);if(!n){toast('노트를 찾을 수 없어요');return}setDoc(structuredCloneSafe(n));LS('current',id);renderTabs()}
+async function switchTo(id){if(doc&&id===doc.id)return;if(id===otherPaneNote()){toast('다른 쪽 화면에 열려 있는 노트예요');return}await saveNow();const n=await getNote(id);if(!n){toast('노트를 찾을 수 없어요');return}setDoc(structuredCloneSafe(n));LS(KEY('current'),id);renderTabs()}
 function structuredCloneSafe(n){return{...n,objs:n.objs.slice(),assets:{...n.assets},view:{...n.view}}}
 async function closeTab(id){const i=openTabs.indexOf(id);if(i<0)return;if(openTabs.length===1){toast('마지막 탭은 닫을 수 없어요');return}
   if(doc.id===id)await saveNow();openTabs.splice(i,1);saveTabs();if(doc.id===id)await switchTo(openTabs[Math.max(0,i-1)]);else renderTabs()}
@@ -965,6 +974,8 @@ async function saveFile(){await saveNow();const used=new Set();doc.objs.forEach(
   const data={format:'sajd-math-note-web',version:1,name:doc.name,objs:doc.objs,assets,view:doc.view,saved:new Date().toISOString()};
   deliver(new Blob([JSON.stringify(data)],{type:'application/json'}),safeName(doc.name)+'.json')}
 $('#fOpen').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+  if(f.type==='application/pdf'||/\.pdf$/i.test(f.name)){$('#drawer').classList.remove('open');importPDF(f);return}
+  if(f.type.startsWith('image/')){$('#drawer').classList.remove('open');insertImageFile(f);return}
   try{const d=JSON.parse(await f.text());if(d.format!=='sajd-math-note-web')throw new Error('형식');await saveNow();
     const n={id:nid(),name:d.name||f.name.replace(/\.json$/,''),objs:d.objs||[],assets:d.assets||{},view:d.view||{x:0,y:0,s:1},created:Date.now(),updated:Date.now()};
     setDoc(n);await saveNow();renderTabs();$('#drawer').classList.remove('open');toast('노트를 열었어요')}
@@ -1070,6 +1081,19 @@ function insertStencil(kind,n){
   }
   if(!out.length)return;commit(doc.objs.concat(out));setTool('lasso',true);setSel(out.map(o=>o.id));toast('스텐실을 넣었어요',1100)}
 
+/* ================================================================ split view (two notes side by side) */
+function otherPaneNote(){if(IS_PANE2)return LS('current');return $('#pane2')?LS('p2.current'):null}
+async function openSplit(){if($('#pane2'))return;await saveNow();closeAll();
+  const fr=document.createElement('iframe');fr.id='pane2';fr.name='sajd-pane2';fr.title='오른쪽 화면';fr.srcdoc=PRISTINE;
+  const dv=document.createElement('div');dv.id='divider';dv.innerHTML='<i></i>';document.body.append(fr,dv);$('#app').classList.add('split');$('#bSplit').classList.add('on');
+  let drag=false;dv.addEventListener('pointerdown',e=>{drag=true;dv.setPointerCapture(e.pointerId);fr.style.pointerEvents='none'});
+  dv.addEventListener('pointermove',e=>{if(!drag)return;const pct=clamp(e.clientX/window.innerWidth*100,25,75);document.documentElement.style.setProperty('--sp',pct+'%')});
+  const end=()=>{drag=false;fr.style.pointerEvents='';LS('splitPos',document.documentElement.style.getPropertyValue('--sp'))};dv.addEventListener('pointerup',end);dv.addEventListener('pointercancel',end);
+  const sp=LS('splitPos');if(sp)document.documentElement.style.setProperty('--sp',sp);LS('split',1);setTimeout(resize,30)}
+async function closeSplit(){const fr=$('#pane2');if(!fr)return;try{fr.contentWindow.postMessage('sajd-save','*')}catch(e){}await new Promise(r=>setTimeout(r,250));fr.remove();$('#divider')?.remove();$('#app').classList.remove('split');$('#bSplit').classList.remove('on');LS('split',0);setTimeout(resize,30)}
+$('#bSplit').addEventListener('click',()=>{if(IS_PANE2){window.parent.postMessage('sajd-close-split','*');return}$('#pane2')?closeSplit():openSplit()});
+window.addEventListener('message',e=>{if(e.data==='sajd-close-split'&&!IS_PANE2)closeSplit();if(e.data==='sajd-save')saveNow()});
+
 /* ================================================================ boot */
 function sampleDoc(){const d=newDoc('시작하기');const C=st.colors;
   d.objs=[{id:nid(),t:'text',x:0,y:0,w:700,fs:30,c:C[0],s:'SAJD Math Note — 아이패드판',bold:true,latex:false},
@@ -1084,12 +1108,15 @@ function sampleDoc(){const d=newDoc('시작하기');const C=st.colors;
 async function boot(){
   $('#app').classList.toggle('bottom',st.barPos==='bottom');renderSwatches();setTool(st.tool==='eyedrop'?'pen':st.tool,true);$('#bGrid').classList.toggle('on',st.grid);
   resize();window.addEventListener('resize',()=>{resize();showSelbar()});
+  if(window.ResizeObserver)new ResizeObserver(()=>{resize()}).observe(stage);
+  if(IS_PANE2){const b=$('#bSplit');b.title='분할 닫기';b.innerHTML='<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>'}
   if(window.visualViewport)visualViewport.addEventListener('resize',()=>setTimeout(resize,50));
   await IDB.open();
-  let cur=LS('current');let d=cur?await getNote(cur):null;
-  if(!d){const list=await allNotes();d=list[0]||null}
+  let cur=LS(KEY('current'));if(cur&&cur===otherPaneNote())cur=null;let d=cur?await getNote(cur):null;
+  if(!d){const list=await allNotes();d=list.find(n=>n.id!==otherPaneNote())||null}
   if(!d){d=sampleDoc();if(LS('seenSample'))d=newDoc(nextName());LS('seenSample',1)}
   setDoc(structuredCloneSafe(d));await saveNow();renderTabs();requestAnimationFrame(frame);
+  if(!IS_PANE2&&LS('split'))openSplit();
   if(document.fonts&&document.fonts.load)document.fonts.load('400 20px "Nanum Gothic"').then(()=>{textCache.clear();bbC=new WeakMap();dirtyBase()}).catch(()=>{});
   document.addEventListener('visibilitychange',()=>{if(document.hidden)saveNow()});window.addEventListener('pagehide',()=>saveNow())}
 boot();
