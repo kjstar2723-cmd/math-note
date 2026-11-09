@@ -113,6 +113,8 @@ textarea{width:100%;box-sizing:border-box;resize:vertical;font-family:ui-monospa
 #divider{position:fixed;top:0;bottom:0;left:var(--sp,50%);width:14px;margin-left:-7px;z-index:6;cursor:col-resize;touch-action:none;display:flex;align-items:center;justify-content:center}
 #divider::before{content:"";position:absolute;top:0;bottom:0;left:6px;width:2px;background:var(--line)}
 #divider i{position:relative;width:6px;height:44px;border-radius:3px;background:var(--mute)}
+#bar.arranging{background:var(--chrome2)}
+#bar>.lifted{transform:translateY(3px) scale(1.12);background:var(--accent-bg);box-shadow:0 6px 18px rgba(0,0,0,.45);border-radius:10px;z-index:2;opacity:.95}
 @media (prefers-reduced-motion:reduce){#drawer{transition:none}}
 </style>
 
@@ -231,7 +233,7 @@ let clip=null;
 const view=()=>doc.view;
 function newDoc(name){return{id:nid(),name:name||'새 노트',objs:[],assets:{},view:{x:-40,y:-40,s:1},created:Date.now(),updated:Date.now()}}
 function setDoc(d){doc=d;if(!doc.assets)doc.assets={};if(!doc.view)doc.view={x:0,y:0,s:1};hist=[doc.objs];hi=0;sel=[];bbC=new WeakMap();invalidateAll();updateUndo();renderTabs();updateZoomLbl()}
-function commit(objs,keepSel){hist=hist.slice(0,hi+1);hist.push(objs);if(hist.length>150)hist.shift();hi=hist.length-1;doc.objs=objs;if(!keepSel)sel=sel.filter(id=>objs.some(o=>o.id===id));dirtyBase();dirtyOver();updateUndo();scheduleSave()}
+function commit(objs,keepSel){hist=hist.slice(0,hi+1);hist.push(objs);if(hist.length>150)hist.shift();hi=hist.length-1;doc.objs=objs;if(!keepSel)sel=sel.filter(id=>objs.some(o=>o.id===id));else sel=sel.filter(id=>objs.some(o=>o.id===id));if(!sel.length)hideSelbar();dirtyBase();dirtyOver();updateUndo();scheduleSave()}
 function undo(){if(hi<=0)return;hi--;doc.objs=hist[hi];sel=[];dirtyBase();dirtyOver();updateUndo();scheduleSave();hideSelbar()}
 function redo(){if(hi>=hist.length-1)return;hi++;doc.objs=hist[hi];sel=[];dirtyBase();dirtyOver();updateUndo();scheduleSave();hideSelbar()}
 function updateUndo(){$('#bUndo').style.opacity=hi>0?1:.4;$('#bRedo').style.opacity=hi<hist.length-1?1:.4}
@@ -504,9 +506,10 @@ function renderOver(){
     for(const L of lasers){const pts=L.pts;if(!pts.length)continue;const age=L.live?0:now-L.end;const a=age<dur?1:Math.max(0,1-(age-dur)/400);if(a<=0)continue;
       for(const [w,al,colr] of[[14,.18,'#ff3b30'],[7,.45,'#ff3b30'],[2.6,1,'#fff2ee']]){octx.globalAlpha=a*al;octx.strokeStyle=colr;octx.lineWidth=w*px;octx.beginPath();octx.moveTo(pts[0][0],pts[0][1]);for(const p of pts)octx.lineTo(p[0],p[1]);if(pts.length===1)octx.lineTo(pts[0][0]+.01,pts[0][1]);octx.stroke()}}
     octx.restore();if(lasers.length)needOver=true}}
-function frame(){requestAnimationFrame(frame);if(!doc)return;if(needBg){needBg=false;renderBg()}if(needBase){needBase=false;renderBase()}if(needOver){needOver=false;renderOver()}}
+function frame(){requestAnimationFrame(frame);if(!doc)return;if(!sel.length&&!selbarEl.hidden)selbarEl.hidden=true;if(needBg){needBg=false;renderBg()}if(needBase){needBase=false;renderBase()}if(needOver){needOver=false;renderOver()}}
 
 /* ================================================================ selection helpers */
+const selbarEl=document.getElementById('selbar');
 const selObjs=()=>sel.map(byId).filter(Boolean);
 const isSingleShape=()=>{const s=selObjs();return s.length===1&&s[0].t==='shape'};
 function handlePts(o){return o.k==='ellipse'?[o.cp[0],o.cp[1]]:o.k==='path'?[]:o.cp}
@@ -653,8 +656,8 @@ function startAction(e,sp){
     let kind=tool;if(M('ctrl')&&tool==='pen')kind='dash';
     act={...base,type:'draw',kind,w:st[tool],pts:[x,y,pressureOf(e)],straight:M('shift'),anchor:[sp[0],sp[1]],lastT:performance.now()};
     armHold();return}
-  if(tool==='eraser'){act={...base,type:'erase',work:doc.objs};eraserPos=[x,y];const r=st.er/view().s;act.work=eraseAt(act.work,x,y,r);applyErase();return}
-  if(tool==='laser'){const L={pts:[[x,y]],live:true,end:0};lasers.push(L);act={...base,type:'laser',L};dirtyOver();return}
+  if(tool==='eraser'){if(sel.length)clearSel();act={...base,type:'erase',work:doc.objs};eraserPos=[x,y];const r=st.er/view().s;act.work=eraseAt(act.work,x,y,r);applyErase();return}
+  if(tool==='laser'){if(sel.length)clearSel();const L={pts:[[x,y]],live:true,end:0};lasers.push(L);act={...base,type:'laser',L};dirtyOver();return}
   if(tool==='lasso'){
     const b=selBox();
     if(b&&!isSingleShape()){const pad=8/view().s,hr=16/view().s;if(dist(x,y,b.x2+pad-6/view().s,b.y2+pad-6/view().s)<=hr*1.3){act={...base,type:'scale',b,preview:selObjs()};hidden=new Set(sel);dirtyBase();return}}
@@ -750,7 +753,7 @@ window.addEventListener('paste',e=>{if(e.target.closest('input,textarea'))return
   if(im){e.preventDefault();const f=im.getAsFile();if(f)insertImageFile(f)}});
 
 /* ================================================================ toolbar */
-function setTool(t,silent){if(t!=='lasso'&&t!=='eyedrop'&&sel.length&&!(isSingleShape()&&['pen','dash','hl'].includes(t)))clearSel();st.tool=t;saveSettings();
+function setTool(t,silent){if(t!=='lasso'&&t!=='eyedrop'&&sel.length)clearSel();st.tool=t;saveSettings();
   document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('on',b.dataset.tool===t));eraserPos=null;dirtyOver();updateWdot();if(!silent&&TOOLNAMES[t])toast(TOOLNAMES[t],900)}
 document.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',e=>{const t=b.dataset.tool;if(st.tool===t&&['pen','dash','hl','eraser','laser','lasso'].includes(t)){openToolPop(b);return}setTool(t)}));
 function renderSwatches(){$('#swatches').innerHTML=st.colors.map((c,i)=>`<button class="sw${i===st.ci?' on':''}" data-ci="${i}" style="background:${c}" aria-label="색상 ${i+1}"></button>`).join('')}
@@ -816,12 +819,12 @@ function openSettings(anchor){
     <div class="hint" style="margin:-2px 0 6px">Apple Pencil을 한 번 쓰면 손가락은 자동으로 화면 이동·확대가 돼요(손바닥 인식).</div>
     <div class="row"><label>도구 막대</label>${seg('bp',[['top','위'],['bottom','아래']],st.barPos)}</div>
     <div class="row"><label>모눈 간격</label><input type="range" id="gs" min="20" max="80" step="5" value="${st.gridSize}"></div>
-    <div class="row"><button class="btn" id="hlp">사용법·단축키</button></div>`,p=>{
+    <div class="hint">도구 막대의 버튼을 꾹 누른 채 옆으로 끌면 위치를 바꿀 수 있어요.</div><div class="row"><button class="btn" id="hlp">사용법·단축키</button><button class="btn" id="barReset">도구 순서 초기화</button></div>`,p=>{
     bindSeg(p,'bd',v=>{st.board=v;saveSettings();textCache.clear();bbC=new WeakMap();invalidateAll()});
     bindSeg(p,'fg',v=>{st.finger=v==='1';penSeen=false;saveSettings()});
     bindSeg(p,'bp',v=>{st.barPos=v;saveSettings();$('#app').classList.toggle('bottom',v==='bottom');setTimeout(resize,0)});
     p.querySelector('#gs').oninput=e=>{st.gridSize=+e.target.value;saveSettings();needBg=true};
-    p.querySelector('#hlp').onclick=()=>{closeAll();openHelp()}})}
+    p.querySelector('#hlp').onclick=()=>{closeAll();openHelp()};p.querySelector('#barReset').onclick=()=>{LS('barOrder',null);applyBarOrder(DEFAULT_ORDER);toast('도구 순서를 처음대로 되돌렸어요')}})}
 
 /* ---------------------------------------------------------------- modals */
 function modal(html){const bg=document.createElement('div');bg.className='modal-bg';bg.innerHTML=`<div class="modal" role="dialog">${html}</div>`;document.body.appendChild(bg);
@@ -1093,6 +1096,30 @@ async function openSplit(){if($('#pane2'))return;await saveNow();closeAll();
 async function closeSplit(){const fr=$('#pane2');if(!fr)return;try{fr.contentWindow.postMessage('sajd-save','*')}catch(e){}await new Promise(r=>setTimeout(r,250));fr.remove();$('#divider')?.remove();$('#app').classList.remove('split');$('#bSplit').classList.remove('on');LS('split',0);setTimeout(resize,30)}
 $('#bSplit').addEventListener('click',()=>{if(IS_PANE2){window.parent.postMessage('sajd-close-split','*');return}$('#pane2')?closeSplit():openSplit()});
 window.addEventListener('message',e=>{if(e.data==='sajd-close-split'&&!IS_PANE2)closeSplit();if(e.data==='sajd-save')saveNow()});
+
+/* ================================================================ toolbar arrangement (long-press & drag) */
+const bar=$('#bar');let sepN=0;
+[...bar.children].forEach(el=>{el.dataset.k=el.dataset.tool?'t:'+el.dataset.tool:el.dataset.mod?'m:'+el.dataset.mod:el.id?'#'+el.id:'sep'+(++sepN)});
+const DEFAULT_ORDER=[...bar.children].map(el=>el.dataset.k);
+function applyBarOrder(order){const map=new Map([...bar.children].map(el=>[el.dataset.k,el]));const seen=new Set();
+  order.forEach(k=>{const el=map.get(k);if(el){bar.appendChild(el);seen.add(k)}});DEFAULT_ORDER.forEach(k=>{if(!seen.has(k)&&map.get(k))bar.appendChild(map.get(k))})}
+function saveBarOrder(){LS('barOrder',[...bar.children].map(el=>el.dataset.k))}
+{const saved=LS('barOrder');if(Array.isArray(saved))applyBarOrder(saved)}
+let arr=null,suppressClick=false;
+bar.addEventListener('pointerdown',e=>{const el=e.target.closest('#bar>*');if(!el||e.button>0)return;
+  const st0={el,pid:e.pointerId,x:e.clientX,y:e.clientY,active:false};arr=st0;
+  st0.timer=setTimeout(()=>{if(arr!==st0)return;st0.active=true;el.classList.add('lifted');bar.classList.add('arranging');try{el.setPointerCapture(st0.pid)}catch(_){}if(navigator.vibrate)try{navigator.vibrate(10)}catch(_){}toast('옆으로 끌어서 위치를 바꾸세요',1200)},450)});
+bar.addEventListener('pointermove',e=>{if(!arr||e.pointerId!==arr.pid)return;
+  if(!arr.active){if(Math.hypot(e.clientX-arr.x,e.clientY-arr.y)>8){clearTimeout(arr.timer);arr=null}return}
+  e.preventDefault();const el=arr.el;const sibs=[...bar.children].filter(c=>c!==el);
+  let target=null;for(const c of sibs){const r=c.getBoundingClientRect();if(e.clientX<r.left+r.width/2){target=c;break}}
+  if(target){if(el.nextElementSibling!==target)bar.insertBefore(el,target)}else if(bar.lastElementChild!==el)bar.appendChild(el);
+  const br=bar.getBoundingClientRect();if(e.clientX<br.left+30)bar.scrollLeft-=12;else if(e.clientX>br.right-30)bar.scrollLeft+=12});
+function endArrange(e){if(!arr||(e&&e.pointerId!==arr.pid))return;clearTimeout(arr.timer);if(arr.active){arr.el.classList.remove('lifted');bar.classList.remove('arranging');saveBarOrder();suppressClick=true;setTimeout(()=>suppressClick=false,400);toast('도구 위치를 저장했어요',1000)}arr=null}
+bar.addEventListener('pointerup',endArrange);bar.addEventListener('pointercancel',endArrange);
+bar.addEventListener('touchmove',e=>{if(arr&&arr.active)e.preventDefault()},{passive:false});
+bar.addEventListener('click',e=>{if(suppressClick){e.stopPropagation();e.preventDefault();suppressClick=false}},true);
+bar.addEventListener('contextmenu',e=>e.preventDefault());
 
 /* ================================================================ boot */
 function sampleDoc(){const d=newDoc('시작하기');const C=st.colors;
