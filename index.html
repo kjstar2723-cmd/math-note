@@ -35,7 +35,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--chrome);color:va
 #bar{display:flex;align-items:center;gap:2px;padding:5px 8px;overflow-x:auto;scrollbar-width:none}
 #bar::-webkit-scrollbar{display:none}
 .sep{width:1px;height:26px;background:var(--line);margin:0 3px;flex:none}
-.tb{flex:none;width:39px;height:40px;border:0;border-radius:10px;background:transparent;color:var(--ink);display:grid;place-items:center;cursor:pointer;position:relative;padding:0;font:inherit}
+.tb{flex:none;width:38px;height:40px;border:0;border-radius:10px;background:transparent;color:var(--ink);display:grid;place-items:center;cursor:pointer;position:relative;padding:0;font:inherit}
 .tb svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .tb:active{background:var(--chrome3)}
 .tb.on{background:var(--accent-bg);color:var(--accent)}
@@ -44,7 +44,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--chrome);color:va
 .tb:focus-visible,.btn:focus-visible,.sw:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .sw{flex:none;width:27px;height:27px;border-radius:50%;border:2px solid var(--chrome);box-shadow:0 0 0 1px var(--line);margin:0 2px;cursor:pointer;padding:0}
 .sw.on{box-shadow:0 0 0 2px var(--accent);border-color:var(--chrome)}
-#wdot{width:39px;height:40px}
+#wdot{width:38px;height:40px}
 #wdot i{display:block;border-radius:50%;background:var(--ink)}
 #tabs{display:flex;align-items:stretch;gap:2px;padding:0 8px 0;overflow-x:auto;scrollbar-width:none;height:34px}
 #tabs::-webkit-scrollbar{display:none}
@@ -103,6 +103,11 @@ textarea{width:100%;box-sizing:border-box;resize:vertical;font-family:ui-monospa
 .keys kbd{font-family:ui-monospace,Menlo,monospace;background:var(--chrome);border:1px solid var(--line);border-radius:5px;padding:1px 6px;white-space:nowrap;justify-self:start}
 .colors-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin-top:8px}
 .colors-grid button{aspect-ratio:1;border-radius:7px;border:1px solid var(--line);cursor:pointer;padding:0}
+.stgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.stgrid button{display:flex;flex-direction:column;align-items:center;gap:4px;border:1px solid var(--line);background:var(--chrome);color:var(--ink);border-radius:10px;padding:8px 4px;font:inherit;font-size:12px;cursor:pointer}
+.stgrid button:active{background:var(--chrome3)}
+.stgrid svg{width:40px;height:30px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.sthead{font-size:12px;color:var(--mute);font-weight:700;letter-spacing:.06em;margin:10px 0 6px}
 @media (prefers-reduced-motion:reduce){#drawer{transition:none}}
 </style>
 
@@ -121,6 +126,7 @@ textarea{width:100%;box-sizing:border-box;resize:vertical;font-family:ui-monospa
       <button class="tb" data-tool="text" title="텍스트 (T)" aria-label="텍스트"><svg viewBox="0 0 24 24"><path d="M5 7V5h14v2M12 5v14M9 19h6"/></svg></button>
       <button class="tb" data-tool="latex" title="LaTeX 수식" aria-label="LaTeX 수식"><svg viewBox="0 0 24 24"><path d="M17 5H6l6 7-6 7h11"/></svg></button>
       <button class="tb" data-tool="graph" title="함수 그래프" aria-label="함수 그래프"><svg viewBox="0 0 24 24"><path d="M5 3v18M3 17h18"/><path d="M7 19c2.5-9 5-13 13-14" /></svg></button>
+      <button class="tb" id="bStencil" title="스텐실 (도형 템플릿)" aria-label="스텐실"><svg viewBox="0 0 24 24"><path d="M4 20L20 20 4 4z"/><path d="M8 16h4.5L8 11.5z"/></svg></button>
       <div class="sep"></div>
       <div id="swatches" style="display:flex;align-items:center"></div>
       <button class="tb" id="wdot" title="굵기" aria-label="굵기"><i></i></button>
@@ -419,6 +425,7 @@ function pathPts(c,p){c.beginPath();c.moveTo(p[0],p[1]);const n=p.length/3;if(n=
   for(let i=1;i<n-1;i++){const mx=(p[i*3]+p[i*3+3])/2,my=(p[i*3+1]+p[i*3+4])/2;c.quadraticCurveTo(p[i*3],p[i*3+1],mx,my)}c.lineTo(p[n*3-3],p[n*3-2])}
 function shapePath(c,o){c.beginPath();const cp=o.cp;
   switch(o.k){case'line':c.moveTo(cp[0][0],cp[0][1]);c.lineTo(cp[1][0],cp[1][1]);break;
+    case'path':c.moveTo(cp[0][0],cp[0][1]);for(let i=1;i<cp.length;i++)c.lineTo(cp[i][0],cp[i][1]);break;
     case'rect':case'poly':c.moveTo(cp[0][0],cp[0][1]);for(let i=1;i<cp.length;i++)c.lineTo(cp[i][0],cp[i][1]);if(!o.open)c.closePath();break;
     case'ellipse':{const e=ellParams(cp);c.ellipse(e.cx,e.cy,Math.max(.1,e.rx),Math.max(.1,e.ry),0,0,Math.PI*2);break}
     case'curve':{const q=qctrl(cp);c.moveTo(cp[0][0],cp[0][1]);c.quadraticCurveTo(q[0],q[1],cp[2][0],cp[2][1]);break}}}
@@ -435,7 +442,9 @@ function drawObj(c,o){
         else{pathPts(c,o.p);c.lineWidth=o.w;c.stroke()}c.restore()}
       break;
     case'shape':c.save();c.strokeStyle=col;c.fillStyle=col;c.lineWidth=o.w;c.lineCap='round';c.lineJoin='round';if(o.dash)c.setLineDash([o.w*2.6,o.w*2.4]);
-      if(o.hl){c.globalAlpha=BOARDS[st.board].dark?.45:.38}shapePath(c,o);if(o.fill)c.fill();else c.stroke();c.restore();break;
+      if(o.hl){c.globalAlpha=BOARDS[st.board].dark?.45:.38}shapePath(c,o);if(o.fill)c.fill();else c.stroke();
+      if(o.arrow&&o.cp.length>1){const a=o.cp[o.cp.length-2],b=o.cp[o.cp.length-1],ang=Math.atan2(b[1]-a[1],b[0]-a[0]),L=Math.max(9,o.w*4);c.setLineDash([]);c.beginPath();c.moveTo(b[0],b[1]);c.lineTo(b[0]-L*Math.cos(ang-0.38),b[1]-L*Math.sin(ang-0.38));c.lineTo(b[0]-L*Math.cos(ang+0.38),b[1]-L*Math.sin(ang+0.38));c.closePath();c.fill()}
+      c.restore();break;
     case'dot':c.fillStyle=col;c.beginPath();c.arc(o.x,o.y,o.r,0,Math.PI*2);c.fill();break;
     case'text':{const r=textRender(o);if(r)c.drawImage(r.img,o.x,o.y,r.img.width/RS,r.img.height/RS);break}
     case'img':{const im=getImg(o.aid);if(im)c.drawImage(im,o.x,o.y,o.w,o.h);else{c.save();c.fillStyle='rgba(128,128,128,.15)';c.fillRect(o.x,o.y,o.w,o.h);c.restore()}break}
@@ -491,7 +500,7 @@ function frame(){requestAnimationFrame(frame);if(!doc)return;if(needBg){needBg=f
 /* ================================================================ selection helpers */
 const selObjs=()=>sel.map(byId).filter(Boolean);
 const isSingleShape=()=>{const s=selObjs();return s.length===1&&s[0].t==='shape'};
-function handlePts(o){return o.k==='ellipse'?[o.cp[0],o.cp[1]]:o.cp}
+function handlePts(o){return o.k==='ellipse'?[o.cp[0],o.cp[1]]:o.k==='path'?[]:o.cp}
 function selBox(){const b=unionBB(selObjs());if(!b)return null;const pad=6/view().s;return{x1:b.x1-pad,y1:b.y1-pad,x2:b.x2+pad,y2:b.y2+pad}}
 function setSel(ids){sel=ids;hidden=new Set();dirtyBase();dirtyOver();showSelbar()}
 function clearSel(){if(!sel.length)return;sel=[];hideSelbar();dirtyOver()}
@@ -499,7 +508,7 @@ function showSelbar(){
   const bar=$('#selbar');const so=selObjs();if(!so.length||act){bar.hidden=true;return}
   const b=selBox();const[sx1,sy1]=toScreen(b.x1,b.y1),[sx2,sy2]=toScreen(b.x2,b.y2);const r=stage.getBoundingClientRect();
   const items=[['copy','복사'],['cut','잘라내기'],['dup','복제'],['color','색 바꾸기']];
-  if(so.length===1&&so[0].t==='shape'){items.push(['ndiv','n등분']);if(so[0].k==='rect')items.push(['free','자유 사각형'])}
+  if(so.length===1&&so[0].t==='shape'&&so[0].k!=='path'&&so[0].k!=='ellipse'){items.push(['ndiv','n등분']);if(so[0].k==='rect')items.push(['free','자유 사각형'])}
   if(so.length===1&&so[0].t==='text')items.unshift(['edit','편집']);
   if(so.length===1&&so[0].t==='graph')items.unshift(['editg','편집']);
   items.push(['front','맨 앞']);items.push(['del','삭제']);
@@ -701,7 +710,7 @@ function endAction(e,sp){
 function longPressShape(x,y){
   if(!act||act.type!=='move')return;const o=selObjs()[0];hidden=new Set();act=null;dirtyBase();dirtyOver();
   if(o.k==='line'||o.k==='curve'){openNdiv(o,null);return}
-  if(o.k==='ellipse'){toast('타원은 n등분을 지원하지 않아요');return}
+  if(o.k==='ellipse'||o.k==='path'){toast('이 도형은 n등분을 지원하지 않아요');return}
   const es=edges(o);let best=-1,bd=Infinity;es.forEach((ed,i)=>{const d=segDist(x,y,ed[0][0],ed[0][1],ed[1][0],ed[1][1]);if(d<bd){bd=d;best=i}});
   if(best>=0&&bd<24/view().s)openNdiv(o,es[best]);else toast('변 위를 길게 누르세요')}
 
@@ -992,6 +1001,74 @@ async function importPDF(f){toast('PDF 불러오는 중…',4000);
       await pg.render({canvasContext:c,viewport:vp}).promise;const h=vp1.height*k;imgs.push({id:nid(),t:'img',pdf:true,aid:addAsset(cv.toDataURL('image/jpeg',0.86)),x,y,w:pageW,h});y+=h+30;
       if(i%5===0)toast(`PDF 불러오는 중… ${i}/${N}`,3000)}
     commit(imgs.concat(doc.objs));toast(`${N}쪽을 불러왔어요`)}catch(err){console.error(err);toast('PDF를 열 수 없어요 (처음 한 번은 인터넷 연결이 필요해요)',3000)}}
+
+/* ================================================================ stencils */
+const STENCILS2D=[['axes2d','좌표축','<path d="M3 15h34M20 28V2"/><path d="M34 13l3 2-3 2M18 5l2-3 2 3"/>'],
+  ['unit','단위원','<circle cx="20" cy="15" r="11"/><path d="M4 15h32M20 1v28"/>'],
+  ['sector','부채꼴','<path d="M8 24h24M8 24L26 8M32 24A24 24 0 0 0 26 8"/>'],
+  ['hyper','쌍곡선','<path d="M4 4c8 6 8 16 0 22M36 4c-8 6-8 16 0 22" /><path d="M6 2l28 26M34 2L6 28" stroke-dasharray="2 2"/>'],
+  ['sin','사인곡선','<path d="M2 15h36"/><path d="M4 15c4-14 8-14 12 0s8 14 12 0 6-10 8-8"/>'],
+  ['cos','코사인곡선','<path d="M2 15h36"/><path d="M3 5c4 0 6 20 11 20s7-20 11-20 7 20 11 20"/>'],
+  ['tan','탄젠트곡선','<path d="M2 15h36"/><path d="M14 2v26M28 2v26" stroke-dasharray="2 2"/><path d="M2 22c6-4 6-10 10-18M16 26c4-8 4-14 10-22"/>'],
+  ['normal','정규분포','<path d="M2 26h36"/><path d="M3 25c8 0 10-20 17-20s9 20 17 20"/><path d="M20 5v21" stroke-dasharray="2 2"/>'],
+  ['ngon','정n각형','<path d="M20 3l11 8-4 14H13L9 11z"/>']];
+const STENCILS3D=[['axes3d','3D 좌표축','<path d="M18 18V2M18 18h20M18 18L6 28"/>'],
+  ['sphere','구','<circle cx="20" cy="15" r="12"/><path d="M8 15c0 4 24 4 24 0"/><path d="M8 15c0-4 24-4 24 0" stroke-dasharray="2 2"/>'],
+  ['hemi','반구','<path d="M7 20a13 13 0 0 1 26 0"/><path d="M7 20c0 4 26 4 26 0"/><path d="M7 20c0-4 26-4 26 0" stroke-dasharray="2 2"/>'],
+  ['tetra','사면체','<path d="M6 25L33 25 18 3z"/><path d="M6 25L23 18 33 25M23 18L18 3" stroke-dasharray="2 2"/>'],
+  ['pyramid','사각뿔','<path d="M5 26h22l8-7M5 26L19 3 27 26M19 3l16 16"/><path d="M5 26l8-7h22M13 19L19 3" stroke-dasharray="2 2"/>'],
+  ['prism','삼각기둥','<path d="M6 10h20l6-6H12zM6 10v18h20V10M32 4v18l-6 6"/><path d="M6 28l6-6h20M12 22V4" stroke-dasharray="2 2"/>']];
+function openStencil(anchor){
+  const btn=([k,l,svg])=>`<button data-st="${k}"><svg viewBox="0 0 40 30">${svg}</svg>${l}</button>`;
+  openPop(anchor,`<h3>스텐실</h3><div class="sthead">2D 도형</div><div class="stgrid">${STENCILS2D.map(btn).join('')}</div>
+    <div class="row" style="margin-top:8px"><label>정n각형의 n</label><input type="number" id="stn" min="3" max="20" value="${LS('ngon')||6}"></div>
+    <div class="sthead">3D 도형</div><div class="stgrid">${STENCILS3D.map(btn).join('')}</div>
+    <div class="hint" style="margin-top:8px">현재 색으로 화면 가운데에 놓여요. 올가미로 옮기고, 오른쪽 아래 동그라미로 크기를 바꾸세요. 각 변은 n등분할 수 있어요.</div>`,p=>{
+    p.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{const n=clamp(Math.round(+p.querySelector('#stn').value||6),3,20);LS('ngon',n);insertStencil(b.dataset.st,n);pop.remove();pop=null})})}
+$('#bStencil').addEventListener('click',()=>openStencil($('#bStencil')));
+function insertStencil(kind,n){
+  const[cx,cy]=viewCenter();const S=st.gridSize*3;const c=st.colors[st.ci];const w=Math.max(2,st.pen);const out=[];
+  const T=(x,y)=>[cx+x,cy+y];
+  const L=(a,b,o={})=>out.push({id:nid(),t:'shape',k:'line',cp:[T(...a),T(...b)],w,c,...o});
+  const P=(pts,o={})=>out.push({id:nid(),t:'shape',k:'path',cp:pts.map(p=>T(...p)),w,c,...o});
+  const PG=(pts,o={})=>out.push({id:nid(),t:'shape',k:'poly',cp:pts.map(p=>T(...p)),w,c,...o});
+  const E=(x1,y1,x2,y2,o={})=>out.push({id:nid(),t:'shape',k:'ellipse',cp:[T(x1,y1),T(x2,y2)],w,c,...o});
+  const X=(x,y,tex,fs=22)=>out.push({id:nid(),t:'text',x:cx+x,y:cy+y,w:0,fs,c,s:'$'+tex+'$',latex:true,bold:false});
+  const D={dash:true};const A={arrow:true};
+  const curve=(f,a,b,N=120)=>{const r=[];for(let i=0;i<=N;i++){const t=a+(b-a)*i/N;r.push(f(t))}return r};
+  const axes=(x1,x2,y1,y2)=>{L([x1,0],[x2,0],A);L([0,y2],[0,y1],A);X(x2-4,6,'x');X(10,y1-12,'y');X(-24,4,'O')};
+  switch(kind){
+    case'axes2d':axes(-S*1.5,S*1.5,-S*1.2,S*1.2);break;
+    case'unit':{const R=S;axes(-R*1.45,R*1.45,-R*1.35,R*1.35);E(-R,-R,R,R);X(R+5,4,'1',18);X(-R-26,4,'-1',18);X(8,-R-26,'1',18);X(8,R+2,'-1',18);break}
+    case'sector':{const r=S*1.5,ox=-r/2,oy=r*0.35,th=Math.PI/3;L([ox,oy],[ox+r,oy]);L([ox,oy],[ox+r*Math.cos(th),oy-r*Math.sin(th)]);
+      P(curve(t=>[ox+r*Math.cos(t),oy-r*Math.sin(t)],0,th,40));P(curve(t=>[ox+r*0.22*Math.cos(t),oy-r*0.22*Math.sin(t)],0,th,16),{w:w*0.7});
+      X(ox+r*0.27,oy-r*0.2,'\\theta',20);X(ox+r*0.45,oy+4,'r',20);out.push({id:nid(),t:'dot',x:cx+ox,y:cy+oy,r:w*1.4,c});break}
+    case'hyper':{const a=S*0.55,b=S*0.42,E2=S*1.5;axes(-E2,E2,-S*1.2,S*1.2);
+      P(curve(t=>[a*Math.cosh(t),b*Math.sinh(t)],-1.75,1.75));P(curve(t=>[-a*Math.cosh(t),b*Math.sinh(t)],-1.75,1.75));
+      const k=b/a,xe=S*1.2/k>E2?E2:S*1.2/k;L([-xe,k*xe],[xe,-k*xe],D);L([-xe,-k*xe],[xe,k*xe],D);break}
+    case'sin':case'cos':{const kx=S*2.6/(2*Math.PI),A0=S*0.6,f=kind==='sin'?Math.sin:Math.cos;L([-S*0.3,0],[S*2.9,0],A);L([0,S*0.95],[0,-S*0.95],A);
+      P(curve(t=>[t*kx,-A0*f(t)],0,2*Math.PI,160));X(S*2.9-4,6,'x');X(10,-S*0.95-12,'y');X(-24,4,'O');
+      [[Math.PI/2,'\\frac{\\pi}{2}'],[Math.PI,'\\pi'],[1.5*Math.PI,'\\frac{3}{2}\\pi'],[2*Math.PI,'2\\pi']].forEach(([v,l])=>{L([v*kx,-5],[v*kx,5],{w:w*0.7});X(v*kx-10,8,l,16)});
+      L([-5,-A0],[5,-A0],{w:w*0.7});X(-22,-A0-10,'1',16);L([-5,A0],[5,A0],{w:w*0.7});X(-30,A0-10,'-1',16);
+      L([0,-A0],[2*Math.PI*kx,-A0],{...D,w:w*0.6});L([0,A0],[2*Math.PI*kx,A0],{...D,w:w*0.6});break}
+    case'tan':{const kx=S*2.6/(2*Math.PI),A0=S*0.45,Y=S*1.05;L([-S*0.3,0],[S*2.9,0],A);L([0,Y],[0,-Y],A);X(S*2.9-4,6,'x');X(10,-Y-12,'y');X(-24,4,'O');
+      [[0,Math.PI/2],[Math.PI/2,1.5*Math.PI],[1.5*Math.PI,2*Math.PI]].forEach(([a,b])=>{const pts=[];for(let i=0;i<=120;i++){const t=a+(b-a)*i/120;const y=-A0*Math.tan(t);if(Math.abs(y)<=Y)pts.push([t*kx,y])}if(pts.length>1)P(pts)});
+      [Math.PI/2,1.5*Math.PI].forEach(v=>L([v*kx,-Y],[v*kx,Y],{...D,w:w*0.6}));[[Math.PI/2,'\\frac{\\pi}{2}'],[Math.PI,'\\pi'],[1.5*Math.PI,'\\frac{3}{2}\\pi'],[2*Math.PI,'2\\pi']].forEach(([v,l])=>X(v*kx+4,8,l,16));break}
+    case'normal':{const sg=S*0.45,H=S*1.1;L([-sg*3.4,0],[sg*3.4,0],A);P(curve(t=>[t,-H*Math.exp(-t*t/(2*sg*sg))],-sg*3.2,sg*3.2,140));L([0,0],[0,-H],{...D,w:w*0.7});X(-8,6,'m',20);X(sg*3.4-4,6,'x');break}
+    case'ngon':{const R=S*0.95,off=-Math.PI/2+(n%2?0:Math.PI/n);PG(Array.from({length:n},(_,i)=>[R*Math.cos(off+2*Math.PI*i/n),R*Math.sin(off+2*Math.PI*i/n)]));break}
+    case'axes3d':{const s=S*1.3;L([0,0],[0,-s],A);L([0,0],[s*1.3,0],A);L([0,0],[-s*0.75,s*0.6],A);L([0,0],[0,s*0.35],D);L([0,0],[-s*0.45,0],D);L([0,0],[s*0.35,-s*0.28],D);
+      X(10,-s-14,'z');X(s*1.3-6,8,'y');X(-s*0.75-24,s*0.6-6,'x');X(-26,6,'O');break}
+    case'sphere':{const R=S,ry=R*0.28;E(-R,-R,R,R);P(curve(t=>[R*Math.cos(t),ry*Math.sin(t)],0,Math.PI,60));P(curve(t=>[R*Math.cos(t),-ry*Math.sin(t)],0,Math.PI,60),D);
+      out.push({id:nid(),t:'dot',x:cx,y:cy,r:w*1.3,c});L([0,0],[R,0],{...D,w:w*0.7});X(R*0.45,-26,'r',20);break}
+    case'hemi':{const R=S*1.1,ry=R*0.3,b=R*0.35;P(curve(t=>[R*Math.cos(t),b-R*Math.sin(t)],0,Math.PI,80));P(curve(t=>[R*Math.cos(t),b+ry*Math.sin(t)],0,Math.PI,60));P(curve(t=>[R*Math.cos(t),b-ry*Math.sin(t)],0,Math.PI,60),D);break}
+    case'tetra':{const R=S*1.1,Ap=[-R,R*0.55],Bp=[R,R*0.55],Cp=[R*0.3,R*0.05],Dp=[-R*0.05,-R*1.2];L(Ap,Bp);L(Ap,Dp);L(Bp,Dp);L(Ap,Cp,D);L(Bp,Cp,D);L(Cp,Dp,D);
+      X(Ap[0]-24,Ap[1]-4,'A',20);X(Bp[0]+6,Bp[1]-4,'B',20);X(Cp[0]+6,Cp[1]-26,'C',20);X(Dp[0]-8,Dp[1]-32,'D',20);break}
+    case'pyramid':{const R=S,d=[R*0.55,-R*0.42],Ap=[-R*1.05,R*0.6],Bp=[R*0.65,R*0.6],Cp=[Bp[0]+d[0],Bp[1]+d[1]],Dp=[Ap[0]+d[0],Ap[1]+d[1]],V=[R*0.05,-R*1.25];
+      L(Ap,Bp);L(Bp,Cp);L(V,Ap);L(V,Bp);L(V,Cp);L(Ap,Dp,D);L(Dp,Cp,D);L(V,Dp,D);X(V[0]-6,V[1]-32,'O',20);break}
+    case'prism':{const R=S,H=R*1.4,d=[R*0.45,-R*0.38],Ap=[-R,H/2+R*0.2],Bp=[R*0.7,H/2+R*0.2],Cp=[Ap[0]+d[0]+R*0.25,Ap[1]+d[1]];
+      const up=p=>[p[0],p[1]-H];L(Ap,Bp);L(up(Ap),up(Bp));L(up(Bp),up(Cp));L(up(Cp),up(Ap));L(Ap,up(Ap));L(Bp,up(Bp));L(Ap,Cp,D);L(Bp,Cp,D);L(Cp,up(Cp),D);break}
+  }
+  if(!out.length)return;commit(doc.objs.concat(out));setTool('lasso',true);setSel(out.map(o=>o.id));toast('스텐실을 넣었어요',1100)}
 
 /* ================================================================ boot */
 function sampleDoc(){const d=newDoc('시작하기');const C=st.colors;
