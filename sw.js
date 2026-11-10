@@ -1,8 +1,7 @@
 // Offline cache for SAJD Math Note (iPad web app)
-const CACHE = 'sajd-math-note-v1';
+const CACHE = 'sajd-math-note-v2';
 const LOCAL = ['./', './index.html', './manifest.webmanifest', './apple-touch-icon.png', './icon-192.png', './icon-512.png'];
 const REMOTE = [
-  'https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg-full.js',
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
@@ -29,7 +28,7 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
   // The app page itself: network first (to get updates), cache when offline
   if (req.mode === 'navigate' || (url.origin === location.origin && url.pathname.endsWith('/index.html'))) {
-    e.respondWith(fetch(req).then(r => { const cp = r.clone(); caches.open(CACHE).then(c => c.put('./index.html', cp)); return r; })
+    e.respondWith(fetch(req, {cache: 'no-cache'}).then(r => { const cp = r.clone(); caches.open(CACHE).then(c => c.put('./index.html', cp)); return r; })
       .catch(() => caches.match('./index.html').then(r => r || caches.match('./'))));
     return;
   }
